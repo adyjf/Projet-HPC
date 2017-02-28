@@ -1,9 +1,14 @@
 #define _POSIX_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 #include <string.h>
 #include <assert.h>
 #include <err.h>
+
+#include <time.h>	/* chronometrage */
+#include <sys/time.h>
+#include <mpi.h>
 
 /* 2017-02-23 : version 1.0 */
 
@@ -129,3 +134,22 @@ void free_tt();
 
 /* affiche la variation principale et la position résultante */
 void print_pv(tree_t *T, result_t *result);
+
+/* récupère les resultats importants des enfants si le score des enfants est
+   superieur à celui du pere 
+   OPERATION A CREER POUR LE REDUCE 
+   https://www.open-mpi.org/doc/current/man3/MPI_Op_create.3.php */
+/*void myProd( Complex *in, Complex *inout, int *len,
+                 MPI_Datatype *dptr )
+    {
+        int i;
+        Complex c;
+    for (i=0; i< *len; ++i) {
+            c.real = inout->real*in->real -
+                       inout->imag*in->imag;
+            c.imag = inout->real*in->imag +
+                       inout->imag*in->real;
+            *inout = c;
+            in++; inout++;
+        }
+    }*/
