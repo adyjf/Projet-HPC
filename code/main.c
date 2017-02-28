@@ -128,9 +128,9 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 
 	/* transmission des résultats */
 
-	/* en anneau, NB DE PROCESSEURS DOIT ETRE PAIR sinon des processeurs seront bloqués */
+	/* communications en anneau */
+	/* NB DE PROCESSEURS DOIT ETRE PAIR, sinon des processeurs seront bloqués */
 	/* à ameliorer en reduce à terme */
-	/* fonctionne actuellement uniquement pour le score du coup, à terme tout remplir pour le reste des données */
 	int nb_iter = (p%2 == 1) ? (p+1)/2 : p/2; //si nombre proc impair on le met à sup
 	int tag = 0;
 	int score_temp;
@@ -187,14 +187,22 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status)
 		boss = 0;
 
 		if(my_rank == 0) { //maitre
-		printf("=====================================\n");
+			printf("=====================================\n");
 		}
 
 		//Tous les processeurs lancent cette fonction
-		//evaluate_first(T, result, my_rank, p, status);
-		evaluate_first(T, result, my_rank, p, status, &boss);
+		if (depth == 1) {
+			if(my_rank == 0) { //maitre
+				boss = 1;
+				evaluate(T, result, my_rank, p, status);
+			} else {
+				break;
+			}
+		} else {
+			evaluate_first(T, result, my_rank, p, status, &boss);
+		}
 
-		//if(my_rank == 0) { //maitre
+		//Seul le meilleur processeur affiche son score
 		if(boss == 1) {
 			printf("depth: %d / score: %.2f / best_move : ", T->depth, 0.01 * result->score);
 			print_pv(T, result);
