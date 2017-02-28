@@ -171,11 +171,8 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 }
 
 //Fonction uniquement appelée 1fois
-void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status)
+void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status, int * boss)
 {
-	//NEW
-	int boss;
-	
 	for (int depth = 1;; depth++) {
 		//Chacun des processeurs possède sa propre copie de l'arbre
 		T->depth = depth;
@@ -183,34 +180,33 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status)
 		T->alpha_start = T->alpha = -MAX_SCORE - 1;
 		T->beta = MAX_SCORE + 1;
 
-		//NEW
-		boss = 0;
+		*boss = 0;
+		
+		if ((depth <= 1) && (my_rank == 0)){ //prof 1 : pas de parallelisme
 
-		if(my_rank == 0) { //maitre
+			evaluate(T, result);
+
+			//L'unique processeur affiche son score
 			printf("=====================================\n");
-		}
-
-		//Tous les processeurs lancent cette fonction
-		if (depth == 1) {
-			if(my_rank == 0) { //maitre
-				boss = 1;
-				evaluate(T, result, my_rank, p, status);
-			} else {
-				break;
-			}
-		} else {
-			evaluate_first(T, result, my_rank, p, status, &boss);
-		}
-
-		//Seul le meilleur processeur affiche son score
-		if(boss == 1) {
 			printf("depth: %d / score: %.2f / best_move : ", T->depth, 0.01 * result->score);
 			print_pv(T, result);
-		}
 
-		//Communication peut etre à voir
-		if (DEFINITIVE(result->score))
-			break;
+			if (DEFINITIVE(result->score)) //si score final
+				break;
+		} else if (depth > 1){ //prof > 1 : parallelisme 
+		
+			evaluate_first(T, result, my_rank, p, status, boss);
+
+			//Seul le meilleur processeur affiche son score
+			if(*boss == 1) {
+				printf("=====================================\n");
+				printf("depth: %d / score: %.2f / best_move : ", T->depth, 0.01 * result->score);
+				print_pv(T, result);
+			}
+
+			if (DEFINITIVE(result->score)) //si score final
+				break;
+		}
 	}
 }
 
@@ -223,13 +219,14 @@ int main(int argc, char **argv)
 	int my_rank;
 	int p;
 	MPI_Status status;
+	int boss;
 	
 	/* Initialisation MPI*/
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
 	
-	if(my_rank == 0) { //maitre
+	if(my_rank == 0) { //arbitraire
 		if (argc < 2) {
 		printf("usage: %s \"4k//4K/4P w\" (or any position in FEN)\n", argv[0]);
 		exit(1);
@@ -240,22 +237,23 @@ int main(int argc, char **argv)
 	result_t result;
 	parse_FEN(argv[1], &root);
 
-	if(my_rank == 0) { //maitre
+	if(my_rank == 0) { //arbitraire
 		print_position(&root);
 	}
 
 	/* debut du chronometrage */
 	debut = my_gettimeofday();
 
-	decide(&root, &result, my_rank, p, status);
+	decide(&root, &result, my_rank, p, status, &boss);
 
 	/* fin du chronometrage */
 	fin = my_gettimeofday();
 	sleep(1);
 	fprintf( stderr, "Processus #%d\tTemps total de calcul : %g sec\n", my_rank, fin - debut);
 
-	if(my_rank == 0) { //maitre
-		printf("\nDécision de la position: ");
+	if(boss == 1) {
+		sleep(2);
+		printf("\nDécision de la position depuis le proc %d : ", my_rank);
 		switch(result.score * (2*root.side - 1)) {
 			case MAX_SCORE: printf("blanc gagne\n"); break;
 			case CERTAIN_DRAW: printf("partie nulle\n"); break;
