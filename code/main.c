@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "projet.h"
 
 /* 2017-02-23 : version 1.0 */
@@ -230,7 +231,7 @@ int main(int argc, char **argv)
 	tree_t root;
 	result_t result;
 	parse_FEN(argv[1], &root);
-		
+
 	if(my_rank == 0) { //maitre
 		print_position(&root);
 	}
@@ -242,6 +243,7 @@ int main(int argc, char **argv)
 
 	/* fin du chronometrage */
 	fin = my_gettimeofday();
+	sleep(1);
 	fprintf( stderr, "Processus #%d\tTemps total de calcul : %g sec\n", my_rank, fin - debut);
 
 	if(my_rank == 0) { //maitre
