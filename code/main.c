@@ -99,11 +99,26 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 	/* division des taches */
 	int reste_n_child = n_moves%p; //calcul du reste
 	int n_child = (n_moves - reste_n_child) / p; //calcul du quotient
-	n_child = (reste_n_child == 0) ? n_child : n_child + 1; //si le reste est non-nul, on ajoute +1 au quotient
-
+	int n_child_min, n_child_max;
+	
+	if ((reste_n_child!=0) && (my_rank<reste_n_child)) { //traite aussi le cas n_child = 0
+		n_child_min = (my_rank)*n_child + my_rank; 
+		n_child_max = (my_rank+1)*n_child + my_rank + 1;
+	} else if (n_child==0){
+		n_child_min = 0; 
+		n_child_max = -1;
+	} else {
+		n_child_min = (my_rank)*n_child + reste_n_child;
+		n_child_max = (my_rank+1)*n_child + reste_n_child;
+	}
+	
+	if(my_rank == 0) {
+		printf("\nn_moves= %d.\n", n_moves);
+	}
+	//printf("\nn_child_min = %d, n_child_max = %d depuis le proc %d.\n", n_child_min, n_child_max, my_rank);
+	
+	
 	/* évalue récursivement les positions accessibles à partir d'ici */
-	int n_child_min = (my_rank)*n_child; //borne inf incluse
-	int n_child_max = MIN(n_moves, (my_rank+1)*n_child); //borne sup non incluse
 	for (int i = n_child_min; i < n_child_max; i++) {
 		tree_t child;
 		result_t child_result;
@@ -129,8 +144,8 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 	/* transmission des résultats */
 
 	/* communications en anneau */
-	/* NB DE PROCESSEURS DOIT ETRE PAIR, sinon des processeurs seront bloqués */
-	/* à ameliorer en reduce à terme */
+	/* NB DE PROCESSEURS DOIT ETRE PAIR POUR LE MOMENT, sinon des processeurs seront bloqués */
+	/* à ameliorer peut etre en reduces à terme */
 	int nb_iter = (p%2 == 1) ? (p+1)/2 : p/2; //si nombre proc impair on le met à sup
 	int tag = 0;
 	int score_temp;
