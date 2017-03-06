@@ -48,10 +48,8 @@ void evaluate(tree_t * T, result_t *result)
 		return;
 	}
 
-	if (ALPHA_BETA_PRUNING)
-		sort_moves(T, n_moves, moves);
-
 	/* évalue récursivement les positions accessibles à partir d'ici */
+	#pragma	omp parallel for schedule(static)
 	for (int i = 0; i < n_moves; i++) {
 		tree_t child;
 		result_t child_result;
@@ -71,14 +69,8 @@ void evaluate(tree_t * T, result_t *result)
 			result->PV[0] = moves[i];
 		}
 
-		if (ALPHA_BETA_PRUNING && child_score >= T->beta)
-			break;
-
 		T->alpha = MAX(T->alpha, child_score);
 	}
-
-	if (TRANSPOSITION_TABLE)
-		tt_store(T, result);
 }
 
 
