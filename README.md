@@ -15,6 +15,11 @@ ssh pcXXXX
 cd .../Projet-HPC/ #cd Bureau/MAIN4/MPI/Projet-HPC/
 ```
 
+### Last available version
+```bash
+git pull
+```
+
 ### Compiling
 
 ```bash
@@ -32,8 +37,7 @@ make exec
 
 ## Maintainers 
 
-Paul-Alexis Dray
-Jean-François Thai
+Paul-Alexis Dray, Jean-François Thai
 
 ### Source 
 
