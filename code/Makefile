@@ -15,5 +15,5 @@ clean:
 	rm -f *.o decide
 
 exec:
-	mpirun -n 4 -hostfile hostfile --bynode ./decide "4k//4K//4P w"
+	mpirun -n 4 -hostfile hostfile --bynode ./decide "4k//4K/4P w"
 
