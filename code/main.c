@@ -111,12 +111,14 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 		n_child_min = (my_rank)*n_child + reste_n_child;
 		n_child_max = (my_rank+1)*n_child + reste_n_child;
 	}
-	
+
+	/* Procedure de debuggage */
+	/*
 	if(my_rank == 0) {
 		printf("\nn_moves= %d.\n", n_moves);
 	}
-	//printf("\nn_child_min = %d, n_child_max = %d depuis le proc %d.\n", n_child_min, n_child_max, my_rank);
-	
+	printf("\nn_child_min = %d, n_child_max = %d depuis le proc %d.\n", n_child_min, n_child_max, my_rank);
+	*/
 	
 	/* évalue récursivement les positions accessibles à partir d'ici */
 	for (int i = n_child_min; i < n_child_max; i++) {
@@ -141,9 +143,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 		T->alpha = MAX(T->alpha, child_score);
 	}
 
-	/* transmission des résultats */
-
-	/* communications en anneau */
+	/* transmission des résultats (communications en anneau) */
 	/* NB DE PROCESSEURS DOIT ETRE PAIR POUR LE MOMENT, sinon des processeurs seront bloqués */
 	/* à ameliorer peut etre en reduces à terme */
 	int nb_iter = (p%2 == 1) ? (p+1)/2 : p/2; //si nombre proc impair on le met à sup
@@ -197,7 +197,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 
 		*boss = 0;
 		
-		if ((depth <= 1) && (my_rank == 0)){ //prof 1 : pas de parallelisme
+		if ((depth <= 1) && (my_rank == 0)){ //prof 1 : pas de parallelisme, rang arbitraire
 
 			evaluate(T, result);
 
@@ -241,7 +241,7 @@ int main(int argc, char **argv)
 	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
 	
-	if(my_rank == 0) { //arbitraire
+	if(my_rank == 0) { //rang arbitraire
 		if (argc < 2) {
 		printf("usage: %s \"4k//4K/4P w\" (or any position in FEN)\n", argv[0]);
 		exit(1);
@@ -252,9 +252,9 @@ int main(int argc, char **argv)
 	result_t result;
 	parse_FEN(argv[1], &root);
 
-	if(my_rank == 0) { //arbitraire
+	if(my_rank == 0) { //rang arbitraire
 		print_position(&root);
-	}
+	} else sleep(1);
 
 	/* debut du chronometrage */
 	debut = my_gettimeofday();
