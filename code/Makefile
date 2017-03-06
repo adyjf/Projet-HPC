@@ -9,8 +9,10 @@ aux.o: aux.c projet.h
 decide: main.o aux.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-.PHONY: clean
+.PHONY: clean exec
 
 clean:
 	rm -f *.o decide
 
+exec:
+	./decide "4k//4K/4P w"
