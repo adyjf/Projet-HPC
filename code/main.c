@@ -1,4 +1,6 @@
-#include <unistd.h>
+#ifndef _OPENMP
+#include <omp.h>
+#endif
 #include <time.h>	/* chronometrage */
 #include <sys/time.h>
 #include "projet.h"
@@ -129,6 +131,7 @@ int main(int argc, char **argv)
 	/* fin du chronometrage */
 	fin = my_gettimeofday();
 	fprintf( stderr, "Temps total de calcul : %g sec\n", fin - debut);
+
 	printf("\nDécision de la position: ");
         switch(result.score * (2*root.side - 1)) {
         case MAX_SCORE: printf("blanc gagne\n"); break;
