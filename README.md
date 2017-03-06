@@ -27,15 +27,10 @@ make
 make exec
 ```
 
-### Output example
-
-```bash
-```
-
 ### Options
 
 
-## Maintainer 
+## Maintainers 
 
 Paul-Alexis Dray
 Jean-François Thai
