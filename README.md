@@ -12,7 +12,7 @@ ssh pcXXXX
 ### Directory
 
 ```bash
-cd ~/Projet-HPC/
+cd .../Projet-HPC/ #cd Bureau/MAIN4/MPI/Projet-HPC/
 ```
 
 ### Compiling
