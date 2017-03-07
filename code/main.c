@@ -18,9 +18,11 @@ int Conflit_score_id(int score_init, int score_temp, int score_res, int iter, in
 		(score_init == score_res) &&
 		(iter != nb_iter-1) && 
 		((iter+my_rank+1)%p < my_rank) )
-		return -1 ;
+		printf("LE PROCESS %d ENLEVE 1.\n", my_rank);
+		//return -1 ;
 	else
 		return 0 ;
+	return 0;
 }
 
 //Fonction qui sera appelée uniquement au sein d'un processeur
@@ -230,7 +232,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 
 			//Seul le meilleur processeur affiche son score
 			if(*boss > 0) {
-				printf("=====================================\n");
+				printf("====================================%d=\n", my_rank);
 				printf("depth: %d / score: %.2f / best_move : ", T->depth, 0.01 * result->score);
 				print_pv(T, result);
 			}
