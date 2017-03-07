@@ -12,6 +12,17 @@ double my_gettimeofday(){
 	return tmp_time.tv_sec + (tmp_time.tv_usec * 1.0e-6L);
 }
 
+//Renvoie -1 si meilleur score, mais rang de processeur superieur par rapport au processeur score doublon
+int Conflit_score_id(int score_init, int score_temp, int score_res, int iter, int nb_iter, int p, int my_rank){
+	if( (score_init == score_temp) && 
+		(score_init == score_res) &&
+		(iter != nb_iter-1) && 
+		((iter+my_rank+1)%p < my_rank) )
+		return -1 ;
+	else
+		return 0 ;
+}
+
 //Fonction qui sera appelée uniquement au sein d'un processeur
 void evaluate(tree_t * T, result_t *result)
 {
@@ -144,27 +155,30 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 	}
 
 	/* transmission des résultats (communications en anneau) */
+	/* tester nb impair : peut fonctionner */
 	/* NB DE PROCESSEURS DOIT ETRE PAIR POUR LE MOMENT, sinon des processeurs seront bloqués */
 	/* à ameliorer peut etre en reduces à terme */
 	int nb_iter = (p%2 == 1) ? (p+1)/2 : p/2; //si nombre proc impair on le met à sup
 	int tag = 0;
-	int score_temp;
-	int score_initial = result->score;
-	for(int i=0; i<nb_iter; i++) {
+	int score_temp, score_init = result->score;
+	for(int iter=0; iter<nb_iter; iter++) {
 		// processeur 0
 		if(my_rank == 0) {
 			MPI_Send(&result->score, 1, MPI_INT, p-1, tag, MPI_COMM_WORLD);
 			MPI_Recv(&score_temp, 1, MPI_INT, 1, tag, MPI_COMM_WORLD, &status);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 		}
 		// dernier processeur soit pair soit impair
 		else if((my_rank == p-1) && (my_rank%2 == 0)) {
 			MPI_Send(&result->score, 1, MPI_INT, my_rank-1, tag, MPI_COMM_WORLD);
 			MPI_Recv(&score_temp, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &status);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 		}
 		else if((my_rank == p-1) && (my_rank%2 == 1)) {
 			MPI_Recv(&score_temp, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &status);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2, nb_iter, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 			MPI_Send(&result->score, 1, MPI_INT, my_rank-1, tag, MPI_COMM_WORLD);
 		}
@@ -172,17 +186,19 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 		else if(my_rank%2 == 0) {
 			MPI_Send(&result->score, 1, MPI_INT, my_rank-1, tag, MPI_COMM_WORLD);
 			MPI_Recv(&score_temp, 1, MPI_INT, my_rank+1, tag, MPI_COMM_WORLD, &status);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 		}
 		// autres processeurs impairs
 		else {
 			MPI_Recv(&score_temp, 1, MPI_INT, my_rank+1, tag, MPI_COMM_WORLD, &status);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2, nb_iter, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 			MPI_Send(&result->score, 1, MPI_INT, my_rank-1, tag, MPI_COMM_WORLD);
 		}
 	}
 	/* le processeur devient le boss (boss = 1) si il est le meilleur */
-	*boss = (result->score == score_initial) ? 1 : 0;
+	(result->score == score_init) ? *boss++ : *boss--;
 }
 
 //Fonction uniquement appelée 1fois
@@ -213,7 +229,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 			evaluate_first(T, result, my_rank, p, status, boss);
 
 			//Seul le meilleur processeur affiche son score
-			if(*boss == 1) {
+			if(*boss > 0) {
 				printf("=====================================\n");
 				printf("depth: %d / score: %.2f / best_move : ", T->depth, 0.01 * result->score);
 				print_pv(T, result);
@@ -266,7 +282,7 @@ int main(int argc, char **argv)
 	sleep(1);
 	fprintf( stderr, "Processus #%d\tTemps total de calcul : %g sec\n", my_rank, fin - debut);
 
-	if(boss == 1) {
+	if(boss > 0) {
 		sleep(2);
 		printf("\nDécision de la position depuis le proc %d : ", my_rank);
 		switch(result.score * (2*root.side - 1)) {
