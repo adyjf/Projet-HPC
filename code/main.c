@@ -35,6 +35,7 @@ int Conflit_score_id(int score_init, int score_temp, int score_res, int iter, in
 			printf(" retour 0 %d,  %d, %d, %d, %d, %d, %d, %d,\n",rank_conflit,score_init,score_temp,score_res, iter,nb_iter,p,my_rank );
 		return 0 ;			//renvoie 0, aucune influence
 	}	
+	
 	return 0;
 }
 
@@ -183,19 +184,19 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 		if(my_rank == 0) {
 			MPI_Send(&result->score, 1, MPI_INT, p-1, tag, MPI_COMM_WORLD);
 			MPI_Recv(&score_temp, 1, MPI_INT, 1, tag, MPI_COMM_WORLD, &status);
-			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter, p, my_rank);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter*2, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 		}
 		// dernier processeur soit pair soit impair
 		else if((my_rank == p-1) && (my_rank%2 == 0)) {
 			MPI_Send(&result->score, 1, MPI_INT, my_rank-1, tag, MPI_COMM_WORLD);
 			MPI_Recv(&score_temp, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &status);
-			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter, p, my_rank);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter*2, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 		}
 		else if((my_rank == p-1) && (my_rank%2 == 1)) {
 			MPI_Recv(&score_temp, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &status);
-			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2, nb_iter, p, my_rank);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2, nb_iter*2, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 			MPI_Send(&result->score, 1, MPI_INT, my_rank-1, tag, MPI_COMM_WORLD);
 		}
@@ -203,13 +204,13 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 		else if(my_rank%2 == 0) {
 			MPI_Send(&result->score, 1, MPI_INT, my_rank-1, tag, MPI_COMM_WORLD);
 			MPI_Recv(&score_temp, 1, MPI_INT, my_rank+1, tag, MPI_COMM_WORLD, &status);
-			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter, p, my_rank);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter*2, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 		}
 		// autres processeurs impairs
 		else {
 			MPI_Recv(&score_temp, 1, MPI_INT, my_rank+1, tag, MPI_COMM_WORLD, &status);
-			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2, nb_iter, p, my_rank);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2, nb_iter*2, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 			MPI_Send(&result->score, 1, MPI_INT, my_rank-1, tag, MPI_COMM_WORLD);
 		}
