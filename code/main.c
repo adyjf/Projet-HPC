@@ -273,7 +273,8 @@ int main(int argc, char **argv)
 	
 	/* Attente de tous les processeurs */
 	MPI_Barrier(MPI_COMM_WORLD);
-	
+	sleep(1);
+        
 	/* Travail et chronometrage */
 	debut = my_gettimeofday();
 	decide(&root, &result, my_rank, p, status, &boss);
@@ -281,14 +282,9 @@ int main(int argc, char **argv)
 	
 	/* Attente de tous les processeurs */
 	MPI_Barrier(MPI_COMM_WORLD);
-	
-	/* Affichage temps de travail */
-	fprintf( stderr, "Processus #%d\tTemps total de calcul : %g sec\n", my_rank, fin - debut);
-	
-	/* Attente de tous les processeurs */
-	MPI_Barrier(MPI_COMM_WORLD);
 	sleep(1);
 	
+	/* Affichage du meilleur score uniquement par le processeur concerné */
 	if(boss > 0) {
 		switch(result.score * (2*root.side - 1)) {
 			case MAX_SCORE: printf("blanc gagne\n"); break;
@@ -298,6 +294,13 @@ int main(int argc, char **argv)
 		}
 		printf("Node searched: %llu\n", node_searched);
 	}
+
+	/* Attente de tous les processeurs */
+        MPI_Barrier(MPI_COMM_WORLD);
+        sleep(1);
+
+	/* Affichage temps de travail */
+        fprintf( stderr, "Processus #%d\tTemps total de calcul : %g sec\n", my_rank, fin - debut);
 
 	/* Désactivation MPI */
 	MPI_Finalize();
