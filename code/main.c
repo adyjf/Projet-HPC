@@ -27,12 +27,12 @@ int Conflit_score_id(int score_init, int score_temp, int score_res, int iter, in
 		(rank_conflit < my_rank) ){			//le rang du processeur en conflit est plus petit que celui actuel
 
 		if( (my_rank == 0) || (my_rank == 2))
-			printf(" retour -1 %d, %d, %d, %d, %d, %d, %d,\n",score_init,score_temp,score_res, iter,nb_iter,p,my_rank );
+			printf(" retour -1 %d,  %d, %d, %d, %d, %d, %d, %d,\n",rank_conflit,score_init,score_temp,score_res, iter,nb_iter,p,my_rank );
 		return -100 ;			//renvoie -1, elimine l'affichage pour ce processeur
 		}			
 	else{
 		if( (my_rank == 0) || (my_rank == 2))
-			printf(" retour 0 %d, %d, %d, %d, %d, %d, %d,\n",score_init,score_temp,score_res, iter,nb_iter,p,my_rank );
+			printf(" retour 0 %d,  %d, %d, %d, %d, %d, %d, %d,\n",rank_conflit,score_init,score_temp,score_res, iter,nb_iter,p,my_rank );
 		return 0 ;			//renvoie 0, aucune influence
 	}	
 	return 0;
