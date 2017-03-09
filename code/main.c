@@ -24,11 +24,15 @@ int Conflit_score_id(int score_init, int score_temp, int score_res, int iter, in
 	if( (score_init == score_res) && 		//le processeur a un meilleur score identique à celui initial (avant les communications)
 		(score_init == score_temp) &&		//le processeur a un meilleur score identique à celui qui arrive
 		(iter != nb_iter-1) && 				//l'iteration n'est pas encore l'iteration finale (seule iteration où l'on retrouve sa propre valeur)
-		(rank_conflit < my_rank) )			//le rang du processeur en conflit est plus petit que celui actuel
+		(rank_conflit < my_rank) ){			//le rang du processeur en conflit est plus petit que celui actuel
+
+		if( (my_rank == 0) || (my_rank == 2))
+			printf(" retour -1 %d, %d, %d, %d, %d, %d, %d,\n",score_init,score_temp,score_res, iter,nb_iter,p,my_rank );
 		return -1 ;			//renvoie -1, elimine l'affichage pour ce processeur
+		}			
 	else{
 		if( (my_rank == 0) || (my_rank == 2))
-			printf("%d, %d, %d, %d, %d, %d, %d,\n",score_init,score_temp,score_res,iter,nb_iter,p,my_rank );
+			printf(" retour 0 %d, %d, %d, %d, %d, %d, %d,\n",score_init,score_temp,score_res, iter,nb_iter,p,my_rank );
 		return 0 ;			//renvoie 0, aucune influence
 	}	
 	return 0;
