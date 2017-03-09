@@ -12,7 +12,7 @@ double my_gettimeofday()
 	return tmp_time.tv_sec + (tmp_time.tv_usec * 1.0e-6L);
 }
 
-//Fonction pour gérer les cas de doublons d'affichage :
+//Fonction pour gérer les cas de doublons d'affichage SANS communication supplémentaire:
 // (en cas de score identique sur deux branches)
 // Solution : on decide arbitrairement d'afficher le processeur au rang le plus petit
 int Conflit_score_id(int score_init, int score_temp, int score_res, int iter, int nb_iter, int p, int my_rank)
@@ -117,11 +117,11 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 	}
 
 	/* division des taches */
-	int reste_n_child = n_moves%p; //calcul du reste
-	int n_child = (n_moves - reste_n_child) / p; //calcul du quotient
-	int n_child_min, n_child_max;
+	int reste_n_child = n_moves%p; 					//calcul du reste
+	int n_child = (n_moves - reste_n_child) / p; 	//calcul du quotient
+	int n_child_min, n_child_max;					//borne min incluse, borne max non incluse
 	
-	//repartition automatique du travail selon le rang du processeur, SANS communication
+	/* repartition automatique du travail selon le rang du processeur SANS communication */
 	if ((reste_n_child!=0) && (my_rank<reste_n_child)) { //traite aussi le cas n_child = 0
 		n_child_min = (my_rank)*n_child + my_rank; 
 		n_child_max = (my_rank+1)*n_child + my_rank + 1;
@@ -133,14 +133,6 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 		n_child_max = (my_rank+1)*n_child + reste_n_child;
 	}
 
-	/* Procedure de debuggage */
-	/*
-	if(my_rank == 0) {
-		printf("\nn_moves= %d.\n", n_moves);
-	}
-	printf("\nn_child_min = %d, n_child_max = %d depuis le proc %d.\n", n_child_min, n_child_max, my_rank);
-	*/
-	
 	/* évalue récursivement les positions accessibles à partir d'ici */
 	for (int i = n_child_min; i < n_child_max; i++) {
 		tree_t child;
@@ -148,7 +140,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 
 		play_move(T, moves[i], &child);
 
-		evaluate(&child, &child_result);
+		evaluate(&child, &child_result); //on appelle bien la fonction evaluate initiale
 
 		int child_score = -child_result.score;
 
@@ -221,7 +213,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 		T->alpha_start = T->alpha = -MAX_SCORE - 1;
 		T->beta = MAX_SCORE + 1;
 
-		*boss = 0;
+		*boss = 0; //variable remise à zero sur chaque processeur, à chaque profondeur
 		
 		if ((depth <= 1) && (my_rank == 0)){ //prof 1 : pas de parallelisme, rang arbitraire
 
@@ -295,6 +287,7 @@ int main(int argc, char **argv)
 	
 	/* Attente de tous les processeurs */
 	MPI_Barrier(MPI_COMM_WORLD);
+	sleep(1);
 	
 	if(boss > 0) {
 		switch(result.score * (2*root.side - 1)) {
