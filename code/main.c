@@ -18,24 +18,16 @@ double my_gettimeofday()
 int Conflit_score_id(int score_init, int score_temp, int score_res, int iter, int nb_iter, int p, int my_rank)
 {
 	int rank_conflit = (iter+my_rank+1)%p; 	//rang du processeur en conflit
-	//if( (my_rank == 0) || (my_rank == 2)
-	//	printf("%d, %d, %d, %d, %d, %d, %d,\n",score_init,score_temp,score_res,iter,nb_iter,p,my_rank );
 	
 	if( (score_init == score_res) && 		//le processeur a un meilleur score identique à celui initial (avant les communications)
 		(score_init == score_temp) &&		//le processeur a un meilleur score identique à celui qui arrive
 		(iter != nb_iter-1) && 				//l'iteration n'est pas encore l'iteration finale (seule iteration où l'on retrouve sa propre valeur)
-		(rank_conflit < my_rank) ){			//le rang du processeur en conflit est plus petit que celui actuel
-
-		if( (my_rank == 0) || (my_rank == 2))
-			printf(" retour -1 %d,  %d, %d, %d, %d, %d, %d, %d,\n",rank_conflit,score_init,score_temp,score_res, iter,nb_iter,p,my_rank );
-		return -100 ;			//renvoie -1, elimine l'affichage pour ce processeur
-		}			
-	else{
-		if( (my_rank == 0) || (my_rank == 2))
-			printf(" retour 0 %d,  %d, %d, %d, %d, %d, %d, %d,\n",rank_conflit,score_init,score_temp,score_res, iter,nb_iter,p,my_rank );
+		(rank_conflit < my_rank) ) {		//le rang du processeur en conflit est plus petit que celui actuel
+		return -100 ;		//renvoie -1, elimine l'affichage definitivement pour cette profondeur pour ce processeur
+	}			
+	else {
 		return 0 ;			//renvoie 0, aucune influence
 	}	
-	
 	return 0;
 }
 
@@ -248,7 +240,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 
 			//Seul le meilleur processeur au rang le plus petit affiche son score (conflit de score id déjà géré)
 			if(*boss > 0) {
-				printf("=%d====================================\n", my_rank);
+				printf("=====================================\n");
 				printf("depth: %d / score: %.2f / best_move : ", T->depth, 0.01 * result->score);
 				print_pv(T, result);
 			}
