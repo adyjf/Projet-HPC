@@ -1,4 +1,3 @@
-#include <unistd.h>
 #include "projet.h"
 
 /* 2017-02-23 : version 1.0 */
@@ -6,26 +5,33 @@
 unsigned long long int node_searched = 0;
 
 //Chronomètre
-double my_gettimeofday(){
+double my_gettimeofday()
+{
 	struct timeval tmp_time;
 	gettimeofday(&tmp_time, NULL);
 	return tmp_time.tv_sec + (tmp_time.tv_usec * 1.0e-6L);
 }
 
-//Renvoie -1 si meilleur score, mais rang de processeur superieur par rapport au processeur score doublon
-int Conflit_score_id(int score_init, int score_temp, int score_res, int iter, int nb_iter, int p, int my_rank){
-	if( (score_init == score_temp) && 
-		(score_init == score_res) &&
-		(iter != nb_iter-1) && 
-		((iter+my_rank+1)%p < my_rank) )
-		printf("LE PROCESS %d ENLEVE 1.\n", my_rank);
-		//return -1 ;
-	else
-		return 0 ;
+//Fonction pour gérer les cas de doublons d'affichage SANS communication supplémentaire:
+// (en cas de score identique sur deux branches)
+// Solution : on decide arbitrairement d'afficher le processeur au rang le plus petit
+int Conflit_score_id(int score_init, int score_temp, int score_res, int iter, int nb_iter, int p, int my_rank)
+{
+	int rank_conflit = (iter+my_rank+1)%p; 	//rang du processeur en conflit
+	
+	if( (score_init == score_res) && 		//le processeur a un meilleur score identique à celui initial (avant les communications)
+		(score_init == score_temp) &&		//le processeur a un meilleur score identique à celui qui arrive
+		(iter != nb_iter-1) && 				//l'iteration n'est pas encore l'iteration finale (seule iteration où l'on retrouve sa propre valeur)
+		(rank_conflit < my_rank) ) {		//le rang du processeur en conflit est plus petit que celui actuel
+		return -100 ;		//renvoie -1, elimine l'affichage definitivement pour cette profondeur pour ce processeur
+	}			
+	else {
+		return 0 ;			//renvoie 0, aucune influence
+	}	
 	return 0;
 }
 
-//Fonction qui sera appelée uniquement au sein d'un processeur
+//Fonction evaluate sequentielle, normale, qui sera appelée uniquement au sein d'un processeur
 void evaluate(tree_t * T, result_t *result)
 {
 	node_searched++;
@@ -79,6 +85,7 @@ void evaluate(tree_t * T, result_t *result)
 	}
 }
 
+//Fonction evaluate PARALLELE qui sera appelée uniquement à la profondeur 1, pour dispatcher le travail des processeurs
 void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status, int * boss)
 {
 	int i;
@@ -110,10 +117,11 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 	}
 
 	/* division des taches */
-	int reste_n_child = n_moves%p; //calcul du reste
-	int n_child = (n_moves - reste_n_child) / p; //calcul du quotient
-	int n_child_min, n_child_max;
+	int reste_n_child = n_moves%p; 					//calcul du reste
+	int n_child = (n_moves - reste_n_child) / p; 	//calcul du quotient
+	int n_child_min, n_child_max;					//borne min incluse, borne max non incluse
 	
+	/* repartition automatique du travail selon le rang du processeur SANS communication */
 	if ((reste_n_child!=0) && (my_rank<reste_n_child)) { //traite aussi le cas n_child = 0
 		n_child_min = (my_rank)*n_child + my_rank; 
 		n_child_max = (my_rank+1)*n_child + my_rank + 1;
@@ -125,14 +133,6 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 		n_child_max = (my_rank+1)*n_child + reste_n_child;
 	}
 
-	/* Procedure de debuggage */
-	/*
-	if(my_rank == 0) {
-		printf("\nn_moves= %d.\n", n_moves);
-	}
-	printf("\nn_child_min = %d, n_child_max = %d depuis le proc %d.\n", n_child_min, n_child_max, my_rank);
-	*/
-	
 	/* évalue récursivement les positions accessibles à partir d'ici */
 	for (int i = n_child_min; i < n_child_max; i++) {
 		tree_t child;
@@ -140,7 +140,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 
 		play_move(T, moves[i], &child);
 
-		evaluate(&child, &child_result);
+		evaluate(&child, &child_result); //on appelle bien la fonction evaluate initiale
 
 		int child_score = -child_result.score;
 
@@ -168,19 +168,19 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 		if(my_rank == 0) {
 			MPI_Send(&result->score, 1, MPI_INT, p-1, tag, MPI_COMM_WORLD);
 			MPI_Recv(&score_temp, 1, MPI_INT, 1, tag, MPI_COMM_WORLD, &status);
-			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter, p, my_rank);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter*2, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 		}
 		// dernier processeur soit pair soit impair
 		else if((my_rank == p-1) && (my_rank%2 == 0)) {
 			MPI_Send(&result->score, 1, MPI_INT, my_rank-1, tag, MPI_COMM_WORLD);
 			MPI_Recv(&score_temp, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &status);
-			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter, p, my_rank);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter*2, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 		}
 		else if((my_rank == p-1) && (my_rank%2 == 1)) {
 			MPI_Recv(&score_temp, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &status);
-			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2, nb_iter, p, my_rank);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2, nb_iter*2, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 			MPI_Send(&result->score, 1, MPI_INT, my_rank-1, tag, MPI_COMM_WORLD);
 		}
@@ -188,19 +188,19 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 		else if(my_rank%2 == 0) {
 			MPI_Send(&result->score, 1, MPI_INT, my_rank-1, tag, MPI_COMM_WORLD);
 			MPI_Recv(&score_temp, 1, MPI_INT, my_rank+1, tag, MPI_COMM_WORLD, &status);
-			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter, p, my_rank);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2+1, nb_iter*2, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 		}
 		// autres processeurs impairs
 		else {
 			MPI_Recv(&score_temp, 1, MPI_INT, my_rank+1, tag, MPI_COMM_WORLD, &status);
-			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2, nb_iter, p, my_rank);
+			*boss += Conflit_score_id(score_init, score_temp, result->score, iter*2, nb_iter*2, p, my_rank);
 			result->score = MAX(result->score, score_temp);
 			MPI_Send(&result->score, 1, MPI_INT, my_rank-1, tag, MPI_COMM_WORLD);
 		}
 	}
-	/* le processeur devient le boss (boss = 1) si il est le meilleur */
-	(result->score == score_init) ? *boss++ : *boss--;
+	/* le processeur devient un boss (boss > 0) si il a un meilleur score, conflit de score id déjà géré */
+	*boss = (result->score == score_init) ?  *boss + 1 : *boss - 1;
 }
 
 //Fonction uniquement appelée 1fois
@@ -213,7 +213,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 		T->alpha_start = T->alpha = -MAX_SCORE - 1;
 		T->beta = MAX_SCORE + 1;
 
-		*boss = 0;
+		*boss = 0; //variable remise à zero sur chaque processeur, à chaque profondeur
 		
 		if ((depth <= 1) && (my_rank == 0)){ //prof 1 : pas de parallelisme, rang arbitraire
 
@@ -230,9 +230,9 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 		
 			evaluate_first(T, result, my_rank, p, status, boss);
 
-			//Seul le meilleur processeur affiche son score
+			//Seul le meilleur processeur au rang le plus petit affiche son score (conflit de score id déjà géré)
 			if(*boss > 0) {
-				printf("====================================%d=\n", my_rank);
+				printf("=====================================\n");
 				printf("depth: %d / score: %.2f / best_move : ", T->depth, 0.01 * result->score);
 				print_pv(T, result);
 			}
@@ -245,59 +245,64 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 
 int main(int argc, char **argv)
 {
-	/*Variables Chrono*/
+	/* Variables chronometre */
 	double debut, fin;
 
-	/* Variables MPI*/
+	/* Variables MPI */
 	int my_rank;
 	int p;
 	MPI_Status status;
 	int boss;
 	
-	/* Initialisation MPI*/
+	/* Initialisation MPI */
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
 	
-	if(my_rank == 0) { //rang arbitraire
-		if (argc < 2) {
-		printf("usage: %s \"4k//4K/4P w\" (or any position in FEN)\n", argv[0]);
+	/* Gestion erreur */
+	if (argc < 2) {
+		if(my_rank == 0) printf("usage: %s \"4k//4K/4P w\" (or any position in FEN)\n", argv[0]);
 		exit(1);
-		}
 	}
-
+	
 	tree_t root;
 	result_t result;
 	parse_FEN(argv[1], &root);
 
-	if(my_rank == 0) { //rang arbitraire
-		print_position(&root);
-	} else sleep(1);
-
-	/* debut du chronometrage */
-	debut = my_gettimeofday();
-
-	decide(&root, &result, my_rank, p, status, &boss);
-
-	/* fin du chronometrage */
-	fin = my_gettimeofday();
+	if (my_rank == 0) print_position(&root);
+	
+	/* Attente de tous les processeurs */
+	MPI_Barrier(MPI_COMM_WORLD);
 	sleep(1);
-	fprintf( stderr, "Processus #%d\tTemps total de calcul : %g sec\n", my_rank, fin - debut);
-
+        
+	/* Travail et chronometrage */
+	debut = my_gettimeofday();
+	decide(&root, &result, my_rank, p, status, &boss);
+	fin = my_gettimeofday();
+	
+	/* Attente de tous les processeurs */
+	MPI_Barrier(MPI_COMM_WORLD);
+	sleep(1);
+	
+	/* Affichage du meilleur score uniquement par le processeur concerné */
 	if(boss > 0) {
-		sleep(2);
-		printf("\nDécision de la position depuis le proc %d : ", my_rank);
 		switch(result.score * (2*root.side - 1)) {
 			case MAX_SCORE: printf("blanc gagne\n"); break;
 			case CERTAIN_DRAW: printf("partie nulle\n"); break;
 			case -MAX_SCORE: printf("noir gagne\n"); break;
 			default: printf("BUG\n");
 		}
-
 		printf("Node searched: %llu\n", node_searched);
 	}
 
-	/*Désactivation MPI*/
+	/* Attente de tous les processeurs */
+        MPI_Barrier(MPI_COMM_WORLD);
+        sleep(1);
+
+	/* Affichage temps de travail */
+        fprintf( stderr, "Processus #%d\tTemps total de calcul : %g sec\n", my_rank, fin - debut);
+
+	/* Désactivation MPI */
 	MPI_Finalize();
 
 	return 0;
