@@ -1,4 +1,4 @@
-# Projet-HPC
+# Projet-HPC, version MPI & OpenMP
 
 ## Usage 
 
@@ -12,15 +12,18 @@ ssh pcXXXX
 ### Directory
 
 ```bash
-cd .../Projet-HPC/ #cd Bureau/MAIN4/MPI/Projet-HPC/
+cd .../Projet-HPC/ #cd Bureau/MAIN4/HPC/Projet-HPC/
 ```
 
 ### Last available version
 ```bash
+git checkout MPI+OpenMP_v1
 git pull
 ```
 
 ### Compiling
+
+WARNING : Makefile unfinished /!\
 
 ```bash
 make
@@ -31,9 +34,6 @@ make
 ```bash
 make exec
 ```
-
-### Options
-
 
 ## Maintainers 
 
