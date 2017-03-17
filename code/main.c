@@ -1,3 +1,6 @@
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 #include "projet.h"
 
 /* 2017-02-23 : version 1.0 */
@@ -62,6 +65,7 @@ void evaluate(tree_t * T, result_t *result)
 	}
 
 	/* évalue récursivement les positions accessibles à partir d'ici */
+	#pragma	omp parallel for schedule(static) //parallelisme openMP
 	for (int i = 0; i < n_moves; i++) {
 		tree_t child;
 		result_t child_result;
