@@ -1,8 +1,6 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
-#include <time.h>	/* chronometrage */
-#include <sys/time.h>
 #include "projet.h"
 
 /* 2017-02-23 : version 1.0 */

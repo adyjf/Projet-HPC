@@ -5,6 +5,9 @@
 #include <assert.h>
 #include <err.h>
 
+#include <time.h> /* chronometrage */
+#include <sys/time.h>
+
 /* 2017-02-23 : version 1.0 */
 
 /******************************************************** 
