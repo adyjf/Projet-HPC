@@ -1,4 +1,4 @@
-# Projet-HPC
+# Projet-HPC, version MPI
 
 ## Usage 
 
@@ -12,11 +12,12 @@ ssh pcXXXX
 ### Directory
 
 ```bash
-cd .../Projet-HPC/ #cd Bureau/MAIN4/MPI/Projet-HPC/
+cd .../Projet-HPC/ #cd Bureau/MAIN4/HPC/Projet-HPC/
 ```
 
 ### Last available version
 ```bash
+git checkout MPI_v1
 git pull
 ```
 
