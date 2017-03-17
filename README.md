@@ -33,9 +33,6 @@ make
 make exec
 ```
 
-### Options
-
-
 ## Maintainers 
 
 Paul-Alexis Dray, Jean-François Thai
