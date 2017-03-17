@@ -20,10 +20,10 @@ int Conflit_score_id(int score_init, int score_temp, int score_res, int iter, in
 	int rank_conflit = (iter+my_rank+1)%p; 	//rang du processeur en conflit
 	
 	if( (score_init == score_res) && 		//le processeur a un meilleur score identique à celui initial (avant les communications)
-		(score_init == score_temp) &&		//le processeur a un meilleur score identique à celui qui arrive
-		(iter != nb_iter-1) && 				//l'iteration n'est pas encore l'iteration finale (seule iteration où l'on retrouve sa propre valeur)
-		(rank_conflit < my_rank) ) {		//le rang du processeur en conflit est plus petit que celui actuel
-		return -100 ;		//renvoie -1, elimine l'affichage definitivement pour cette profondeur pour ce processeur
+		(score_init == score_temp) &&			//le processeur a un meilleur score identique à celui qui arrive
+		(iter != nb_iter-1) && 						//l'iteration n'est pas encore l'iteration finale (seule iteration où l'on retrouve sa propre valeur)
+		(rank_conflit < my_rank) ) {			//le rang du processeur en conflit est plus petit que celui actuel
+		return -100 ;		//renvoie -100, elimine l'affichage definitivement pour cette profondeur et pour ce processeur
 	}			
 	else {
 		return 0 ;			//renvoie 0, aucune influence
@@ -117,9 +117,9 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 	}
 
 	/* division des taches */
-	int reste_n_child = n_moves%p; 					//calcul du reste
+	int reste_n_child = n_moves%p; 								//calcul du reste
 	int n_child = (n_moves - reste_n_child) / p; 	//calcul du quotient
-	int n_child_min, n_child_max;					//borne min incluse, borne max non incluse
+	int n_child_min, n_child_max;									//borne min incluse, borne max non incluse
 	
 	/* repartition automatique du travail selon le rang du processeur SANS communication */
 	if ((reste_n_child!=0) && (my_rank<reste_n_child)) { //traite aussi le cas n_child = 0
@@ -157,9 +157,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 	}
 
 	/* transmission des résultats (communications en anneau) */
-	/* tester nb impair : peut fonctionner */
-	/* NB DE PROCESSEURS DOIT ETRE PAIR POUR LE MOMENT, sinon des processeurs seront bloqués */
-	/* à ameliorer peut etre en reduces à terme */
+	/* nb de processeurs peut être pair ou impair */
 	int nb_iter = (p%2 == 1) ? (p+1)/2 : p/2; //si nombre proc impair on le met à sup
 	int tag = 0;
 	int score_temp, score_init = result->score;
@@ -252,7 +250,7 @@ int main(int argc, char **argv)
 	int my_rank;
 	int p;
 	MPI_Status status;
-	int boss;
+	int boss; //variable qui montre si le processeur possede ou non le meilleur coup
 	
 	/* Initialisation MPI */
 	MPI_Init(&argc, &argv);
@@ -296,11 +294,11 @@ int main(int argc, char **argv)
 	}
 
 	/* Attente de tous les processeurs */
-        MPI_Barrier(MPI_COMM_WORLD);
-        sleep(1);
+  MPI_Barrier(MPI_COMM_WORLD);
+  sleep(1);
 
 	/* Affichage temps de travail */
-        fprintf( stderr, "Processus #%d\tTemps total de calcul : %g sec\n", my_rank, fin - debut);
+  fprintf( stderr, "Processus #%d\tTemps total de calcul : %g sec\n", my_rank, fin - debut);
 
 	/* Désactivation MPI */
 	MPI_Finalize();
