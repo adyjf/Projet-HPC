@@ -324,7 +324,7 @@ int main(int argc, char **argv)
   sleep(1);
 
 	/* Affichage temps de travail */
-  fprintf( stderr, "Processus #%d\tTemps effectif de calcul : %g sec\n", my_rank, temps_calcul);
+  fprintf( stdout, "Processus #%d\tTemps effectif de calcul : %g sec\n", my_rank, temps_calcul);
 
 	/* Désactivation MPI */
 	MPI_Finalize();
