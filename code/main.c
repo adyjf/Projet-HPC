@@ -86,8 +86,12 @@ void evaluate(tree_t * T, result_t *result)
 }
 
 //Fonction evaluate PARALLELE qui sera appelée uniquement à la profondeur 1, pour dispatcher le travail des processeurs
-void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status, int * boss)
+void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status, int * boss, double * temps_calcul)
 {
+	/* Variables chronometre */
+	double debut, fin;
+	debut = my_gettimeofday();
+	
 	int i;
 	node_searched++;
 
@@ -161,6 +165,15 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 	int nb_iter = (p%2 == 1) ? (p+1)/2 : p/2; //si nombre proc impair on le met à sup
 	int tag = 0;
 	int score_temp, score_init = result->score;
+	
+	fin = my_gettimeofday();
+	*temps_calcul += fin-debut;
+
+	/* Attente de tous les processeurs */
+  MPI_Barrier(MPI_COMM_WORLD); //AJOUT
+	
+	debut = my_gettimeofday();
+
 	for(int iter=0; iter<nb_iter; iter++) {
 		// processeur 0
 		if(my_rank == 0) {
@@ -199,6 +212,10 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 	}
 	/* le processeur devient un boss (boss > 0) si il a un meilleur score, conflit de score id déjà géré */
 	*boss = (result->score == score_init) ?  *boss + 1 : *boss - 1;
+
+	fin = my_gettimeofday();
+	*temps_calcul += fin-debut;
+
 }
 
 //Fonction uniquement appelée 1fois
@@ -208,9 +225,6 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 	double debut, fin;
 
 	for (int depth = 1;; depth++) {
-
-		debut = my_gettimeofday();
-
 		//Chacun des processeurs possède sa propre copie de l'arbre
 		T->depth = depth;
 		T->height = 0;
@@ -221,6 +235,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 		
 		//if ((depth <= 1) && (my_rank == 0)){ //prof 1 : pas de parallelisme, rang arbitraire
 		if ((depth <= 5) && (my_rank == 0)){ //prof 1 : pas de parallelisme, rang arbitraire
+			debut = my_gettimeofday();
 
 			evaluate(T, result);
 
@@ -229,12 +244,15 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 			printf("depth: %d / score: %.2f / best_move : ", T->depth, 0.01 * result->score);
 			print_pv(T, result);
 
+			fin = my_gettimeofday();
+			*temps_calcul += fin-debut;
+
 			if (DEFINITIVE(result->score)) //si score final
 				break;
 		//} else if (depth > 1){ //prof > 1 : parallelisme 
 		} else if (depth > 5){ //prof > 1 : parallelisme 
 		
-			evaluate_first(T, result, my_rank, p, status, boss);
+			evaluate_first(T, result, my_rank, p, status, boss, temps_calcul);
 
 			//Seul le meilleur processeur au rang le plus petit affiche son score (conflit de score id déjà géré)
 			if(*boss > 0) {
@@ -242,9 +260,6 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 				printf("depth: %d / score: %.2f / best_move : ", T->depth, 0.01 * result->score);
 				print_pv(T, result);
 			}
-
-			fin = my_gettimeofday();
-			*temps_calcul += fin-debut;
 
 			if (DEFINITIVE(result->score)) //si score final
 				break;
