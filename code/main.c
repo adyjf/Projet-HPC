@@ -289,9 +289,9 @@ int main(int argc, char **argv)
 	sleep(1);
         
 	/* Travail et chronometrage */
-	debut = my_gettimeofday();
+	//debut = my_gettimeofday();
 	decide(&root, &result, my_rank, p, status, &boss, &temps_calcul);
-	fin = my_gettimeofday();
+	//fin = my_gettimeofday();
 	
 	/* Attente de tous les processeurs */
 	MPI_Barrier(MPI_COMM_WORLD);
