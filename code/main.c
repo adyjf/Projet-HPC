@@ -214,7 +214,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 		*boss = 0; //variable remise à zero sur chaque processeur, à chaque profondeur
 		
 		//if ((depth <= 1) && (my_rank == 0)){ //prof 1 : pas de parallelisme, rang arbitraire
-		if ((depth <= 2) && (my_rank == 0)){ //prof 1 : pas de parallelisme, rang arbitraire
+		if ((depth <= 5) && (my_rank == 0)){ //prof 1 : pas de parallelisme, rang arbitraire
 
 			evaluate(T, result);
 
@@ -226,7 +226,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 			if (DEFINITIVE(result->score)) //si score final
 				break;
 		//} else if (depth > 1){ //prof > 1 : parallelisme 
-		} else if (depth > 2){ //prof > 1 : parallelisme 
+		} else if (depth > 5){ //prof > 1 : parallelisme 
 		
 			evaluate_first(T, result, my_rank, p, status, boss);
 
