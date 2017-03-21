@@ -15,6 +15,7 @@ clean:
 	rm -f *.o decide
 
 exec:
+	export OMP_NUM_THREADS=4
 	mpirun -n 4 -hostfile hostfile --bynode ./decide "4k//4K/4P w"
 #	mpirun -n 4 -hostfile hostfile --bynode ./decide "/ppp//PPP//7k//7K w"
 #	mpirun -n 4 -hostfile hostfile --bynode ./decide "7K//k1P/7p b" 
