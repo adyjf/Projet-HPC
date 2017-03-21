@@ -91,7 +91,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 	/* Variables chronometre */
 	double debut, fin;
 	debut = my_gettimeofday();
-	
+
 	int i;
 	node_searched++;
 
@@ -233,7 +233,6 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 
 		*boss = 0; //variable remise à zero sur chaque processeur, à chaque profondeur
 		
-		//if ((depth <= 1) && (my_rank == 0)){ //prof 1 : pas de parallelisme, rang arbitraire
 		if ((depth <= 5) && (my_rank == 0)){ //prof 1 : pas de parallelisme, rang arbitraire
 			debut = my_gettimeofday();
 
@@ -249,7 +248,6 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 
 			if (DEFINITIVE(result->score)) //si score final
 				break;
-		//} else if (depth > 1){ //prof > 1 : parallelisme 
 		} else if (depth > 5){ //prof > 1 : parallelisme 
 		
 			evaluate_first(T, result, my_rank, p, status, boss, temps_calcul);
@@ -273,7 +271,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 
 int main(int argc, char **argv)
 {
-	/* Variables chronometre */
+	/* Variable chronometre */
 	double temps_calcul;
 
 	/* Variables MPI */
@@ -303,10 +301,8 @@ int main(int argc, char **argv)
 	MPI_Barrier(MPI_COMM_WORLD);
 	sleep(1);
         
-	/* Travail et chronometrage */
-	//debut = my_gettimeofday();
+	/* Travail */
 	decide(&root, &result, my_rank, p, status, &boss, &temps_calcul);
-	//fin = my_gettimeofday();
 	
 	/* Attente de tous les processeurs */
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -328,7 +324,7 @@ int main(int argc, char **argv)
   sleep(1);
 
 	/* Affichage temps de travail */
-  fprintf( stderr, "Processus #%d\tTemps total de calcul : %g sec\n", my_rank, temps_calcul);
+  fprintf( stderr, "Processus #%d\tTemps effectif de calcul : %g sec\n", my_rank, temps_calcul);
 
 	/* Désactivation MPI */
 	MPI_Finalize();
