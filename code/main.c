@@ -202,9 +202,15 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 }
 
 //Fonction uniquement appelée 1fois
-void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status, int * boss)
+void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status, int * boss, double * temps_calcul)
 {
+	/* Variables chronometre */
+	double debut, fin;
+
 	for (int depth = 1;; depth++) {
+
+		debut = my_gettimeofday();
+
 		//Chacun des processeurs possède sa propre copie de l'arbre
 		T->depth = depth;
 		T->height = 0;
@@ -237,6 +243,9 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 				print_pv(T, result);
 			}
 
+			fin = my_gettimeofday();
+			*temps_calcul += fin-debut;
+
 			if (DEFINITIVE(result->score)) //si score final
 				break;
 		}
@@ -250,7 +259,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status,
 int main(int argc, char **argv)
 {
 	/* Variables chronometre */
-	double debut, fin;
+	double temps_calcul;
 
 	/* Variables MPI */
 	int my_rank;
@@ -281,7 +290,7 @@ int main(int argc, char **argv)
         
 	/* Travail et chronometrage */
 	debut = my_gettimeofday();
-	decide(&root, &result, my_rank, p, status, &boss);
+	decide(&root, &result, my_rank, p, status, &boss, &temps_calcul);
 	fin = my_gettimeofday();
 	
 	/* Attente de tous les processeurs */
@@ -304,7 +313,7 @@ int main(int argc, char **argv)
   sleep(1);
 
 	/* Affichage temps de travail */
-  fprintf( stderr, "Processus #%d\tTemps total de calcul : %g sec\n", my_rank, fin - debut);
+  fprintf( stderr, "Processus #%d\tTemps total de calcul : %g sec\n", my_rank, temps_calcul);
 
 	/* Désactivation MPI */
 	MPI_Finalize();
