@@ -136,22 +136,3 @@ void free_tt();
 
 /* affiche la variation principale et la position résultante */
 void print_pv(tree_t *T, result_t *result);
-
-/* récupère les resultats importants des enfants si le score des enfants est
-   superieur à celui du pere 
-   OPERATION A CREER POUR LE REDUCE 
-   https://www.open-mpi.org/doc/current/man3/MPI_Op_create.3.php */
-/*void myProd( Complex *in, Complex *inout, int *len,
-                 MPI_Datatype *dptr )
-    {
-        int i;
-        Complex c;
-    for (i=0; i< *len; ++i) {
-            c.real = inout->real*in->real -
-                       inout->imag*in->imag;
-            c.imag = inout->real*in->imag +
-                       inout->imag*in->real;
-            *inout = c;
-            in++; inout++;
-        }
-    }*/
