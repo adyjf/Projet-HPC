@@ -15,5 +15,6 @@ clean:
 	rm -f *.o decide
 
 exec:
-	export OMP_NUM_THREADS=4
+	export OMP_NUM_THREADS=2
 	./decide "4k//4K/4P w"
+	./decide "4k//4K//4P w" 

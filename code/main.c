@@ -71,7 +71,6 @@ void evaluate(tree_t * T, result_t *result)
 	}
 }
 
-
 void decide(tree_t * T, result_t *result)
 {
 	for (int depth = 1;; depth++) {
