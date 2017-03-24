@@ -47,6 +47,62 @@ void evaluate(tree_t * T, result_t *result)
 	}
 
 	/* évalue récursivement les positions accessibles à partir d'ici */
+	for (int i = 0; i < n_moves; i++) {
+		tree_t child;
+		result_t child_result;
+
+		play_move(T, moves[i], &child);
+
+		evaluate(&child, &child_result);
+		         
+		int child_score = -child_result.score;
+
+		if (child_score > result->score) {
+			result->score = child_score;
+			result->best_move = moves[i];
+			result->pv_length = child_result.pv_length + 1;
+			for(int j = 0; j < child_result.pv_length; j++)
+				result->PV[j+1] = child_result.PV[j];
+			result->PV[0] = moves[i];
+		}
+
+		T->alpha = MAX(T->alpha, child_score);
+	}
+}
+
+void evaluate_first(tree_t * T, result_t *result)
+{
+		node_searched++;
+
+	move_t moves[MAX_MOVES];
+	int n_moves;
+
+	result->score = -MAX_SCORE - 1;
+	result->pv_length = 0;
+    
+	if (test_draw_or_victory(T, result))
+		return;
+
+	if (TRANSPOSITION_TABLE && tt_lookup(T, result))     /* la réponse est-elle déjà connue ? */
+		return;
+
+	compute_attack_squares(T);
+
+	/* profondeur max atteinte ? si oui, évaluation heuristique */
+	if (T->depth == 0) {
+		result->score = (2 * T->side - 1) * heuristic_evaluation(T);
+		return;
+	}
+
+	n_moves = generate_legal_moves(T, &moves[0]);
+
+	/* absence de coups légaux : pat ou mat */
+	if (n_moves == 0) {
+		result->score = check(T) ? -MAX_SCORE : CERTAIN_DRAW;
+		return;
+	}
+
+	/* évalue récursivement les positions accessibles à partir d'ici */
 	#pragma	omp parallel for schedule(static)
 	for (int i = 0; i < n_moves; i++) {
 		tree_t child;
@@ -71,7 +127,6 @@ void evaluate(tree_t * T, result_t *result)
 	}
 }
 
-
 void decide(tree_t * T, result_t *result)
 {
 	for (int depth = 1;; depth++) {
@@ -81,7 +136,7 @@ void decide(tree_t * T, result_t *result)
 		T->beta = MAX_SCORE + 1;
 
 		printf("=====================================\n");
-		evaluate(T, result);
+		evaluate_first(T, result);
 
 		printf("depth: %d / score: %.2f / best_move : ", T->depth, 0.01 * result->score);
 		print_pv(T, result);
