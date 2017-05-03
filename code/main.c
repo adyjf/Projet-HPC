@@ -31,9 +31,25 @@ int Conflit_score_id(int score_init, int score_temp, int score_res, int iter, in
 	return 0;
 }
 
-//Fonction evaluate sequentielle, normale, qui sera appelée uniquement au sein d'un processeur
-void evaluate(tree_t * T, result_t *result)
+void evaluate(tree_t * T, result_t *result, int my_rank, int p, MPI_Status status, int * boss, double * temps_calcul)
+//Fonction qui doit repartir le travail avant de travailler.
 {
+	/* structure MPI pour result_t */
+	const int count_items = 4;
+	const int blocklengths_array[4] = {1,1,1, MAX_DEPTH};
+	MPI_Aint offsets_array[4];
+	const MPI_Datatype types_array[4] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT};
+	MPI_Datatype MPI_result_t;
+	
+	offsets_array[0] = offsetof(result_t, score);
+	offsets_array[1] = offsetof(result_t, best_move);
+	offsets_array[2] = offsetof(result_t, pv_length);
+	offsets_array[3] = offsetof(result_t, PV);
+
+	MPI_Type_create_struct(count_items, blocklengths_array, offsets_array, types_array, &MPI_result_t);
+	MPI_Type_commit(&MPI_result_t);
+
+	/* suite de la fonction */
 	node_searched++;
 
 	move_t moves[MAX_MOVES];
@@ -60,6 +76,13 @@ void evaluate(tree_t * T, result_t *result)
 		result->score = check(T) ? -MAX_SCORE : CERTAIN_DRAW;
 		return;
 	}
+
+	if (ALPHA_BETA_PRUNING)
+		sort_moves(T, n_moves, moves);
+
+	/* division des taches */
+	int reste_n_child = n_moves%p; 					//calcul du reste
+	int n_child = (n_moves - reste_n_child) / p; 	//calcul du quotient
 
 	/* évalue récursivement les positions accessibles à partir d'ici */
 	for (int i = 0; i < n_moves; i++) {
