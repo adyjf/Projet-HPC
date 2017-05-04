@@ -127,16 +127,16 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
       }
     
     while (imoves!=n_moves){
-      MPI_Probe(MPI_ANY_SOURCE, TAG_DATA, MPI_COMM_WORLD, &status);
-      MPI_Recv(&result_tmp, 1, datatype, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
-      MPI_Recv(&alpha_tmp, 1, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
-      MPI_Send(&moves[imoves], 1, MPI_INT, status.MPI_SOURCE, TAG_DATA, MPI_COMM_WORLD);
+      MPI_Probe(MPI_ANY_SOURCE, TAG_DATA, MPI_COMM_WORLD, status);
+      MPI_Recv(&result_tmp, 1, datatype, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
+      MPI_Recv(&alpha_tmp, 1, MPI_INT, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
+      MPI_Send(&moves[imoves], 1, MPI_INT, status->MPI_SOURCE, TAG_DATA, MPI_COMM_WORLD);
       imoves++;
     }
     for(iproc=1; iproc<p; iproc++){
-      MPI_Probe(MPI_ANY_SOURCE, TAG_DATA, MPI_COMM_WORLD, &status);
-      MPI_Recv(&result_tmp, 1, datatype, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
-      MPI_Recv(&alpha_tmp, 1, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+      MPI_Probe(MPI_ANY_SOURCE, TAG_DATA, MPI_COMM_WORLD, status);
+      MPI_Recv(&result_tmp, 1, datatype, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
+      MPI_Recv(&alpha_tmp, 1, MPI_INT, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
     }
 
     imoves=-1;
@@ -150,11 +150,11 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
     result_t child_result;
     move_t moves;
     
-    MPI_Recv(&moves, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD, &status);
+    MPI_Recv(&moves, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD, status);
     while(1){
-      MPI_Wait(request, status);
-      if(status.MPI_TAG == TAG_DATA){
-        MPI_Recv(&moves, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD, &status);
+      //MPI_Wait(request, status);
+      if(status->MPI_TAG == TAG_DATA){
+        MPI_Recv(&moves, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD, status);
 
         play_move(T, moves, &child);
         evaluate(&child, &child_result);
@@ -177,7 +177,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
         T->alpha = MAX(T->alpha, child_score);
         MPI_Send(&T->alpha, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD);
       }
-      else if(status.MPI_TAG == TAG_END)
+      else if(status->MPI_TAG == TAG_END)
         break;
     }
   }
