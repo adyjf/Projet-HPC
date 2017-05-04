@@ -1,18 +1,17 @@
 #define _POSIX_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
 #include <string.h>
 #include <assert.h>
 #include <err.h>
 
-#include <time.h>	/* chronometrage */
+#include <time.h> /* chronometrage */
 #include <sys/time.h>
 #include <mpi.h>
 #include <unistd.h>
+#include <stddef.h>
 
-
-/* 2017-02-23 : version 1.0 */
+/* 2017-05-04 : version 1.0 */
 
 /******************************************************** 
  * Faire passer ALPHA_BETA_PRUNING à 1 pour la 2ème phase du projet. 
@@ -35,6 +34,9 @@
 
 #define MAX(x,y) ((x> y) ?x:y)
 #define MIN(x,y) ((x<y) ?x:y)
+
+#define TAG_DATA 11
+#define TAG_END 12
 
 /*** structures de données ***/
 typedef int square_t;

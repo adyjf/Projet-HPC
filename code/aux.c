@@ -1,6 +1,6 @@
 #include "projet.h"
 
-/* 2017-02-23 : version 1.0 */
+/* 2017-05-04 : version 1.0 */
 
 typedef struct {
   unsigned long long hash;
