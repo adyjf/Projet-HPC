@@ -30,6 +30,7 @@
 #define CERTAIN_DRAW 0
 
 #define MAX_MOVES 32
+#define MAX_NODES 2048
 #define MAX_DEPTH 128
 
 #define MAX(x,y) ((x> y) ?x:y)

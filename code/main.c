@@ -12,19 +12,9 @@ double my_gettimeofday()
   return tmp_time.tv_sec + (tmp_time.tv_usec * 1.0e-6L);
 }
 
-
-void evaluate(tree_t * T, result_t *result)
-{
-  node_searched++;
-
-  move_t moves[MAX_MOVES];
-  int n_moves;
-
-  result->score = -MAX_SCORE - 1;
-  result->pv_length = 0;
-
-  if (test_draw_or_victory(T, result))
-    return;
+void evaluate_beginning(tree_t * T, result_t *result, int * n_moves, move_t moves[]){
+	if (test_draw_or_victory(T, result))
+      return;
 
   if (TRANSPOSITION_TABLE && tt_lookup(T, result))     /* la réponse est-elle déjà connue ? */
     return;
@@ -37,8 +27,8 @@ void evaluate(tree_t * T, result_t *result)
     return;
   }
 
-  n_moves = generate_legal_moves(T, &moves[0]);
-
+  *n_moves = generate_legal_moves(T, &moves[0]);
+  
   /* absence de coups légaux : pat ou mat */
   if (n_moves == 0) {
     result->score = check(T) ? -MAX_SCORE : CERTAIN_DRAW;
@@ -46,7 +36,19 @@ void evaluate(tree_t * T, result_t *result)
   }
 
   if (ALPHA_BETA_PRUNING)
-    sort_moves(T, n_moves, moves);
+    sort_moves(T, *n_moves, moves);
+}
+
+void evaluate(tree_t * T, result_t *result){
+  node_searched++;
+
+  move_t moves[MAX_MOVES];
+  int n_moves;
+
+  result->score = -MAX_SCORE - 1;
+  result->pv_length = 0;
+
+  evaluate_beginning(T, result, &n_moves, moves);
 
   /* évalue récursivement les positions accessibles à partir d'ici */
   for (int i = 0; i < n_moves; i++) {
@@ -78,81 +80,87 @@ void evaluate(tree_t * T, result_t *result)
     tt_store(T, result);
 }
 
-void evaluate_beginning(tree_t * T, result_t *result, int * n_moves, int * n_nodes, move_t moves[])
+void deep_evaluate(tree_t * T, result_t *result, tree_t nodes[], result_t results[], int * i_nodes, int allowed_to_dig)
 {
-	if (test_draw_or_victory(T, result))
-      return;
+  node_searched++;
 
-  if (TRANSPOSITION_TABLE && tt_lookup(T, result))     /* la réponse est-elle déjà connue ? */
-    return;
+  move_t moves[MAX_MOVES];
+  int n_moves;
 
-  compute_attack_squares(T);
+  result->score = -MAX_SCORE - 1;
+  result->pv_length = 0;
 
-  /* profondeur max atteinte ? si oui, évaluation heuristique */
-  if (T->depth == 0) {
-    result->score = (2 * T->side - 1) * heuristic_evaluation(T);
-    return;
+	evaluate_beginning(T, result, &n_moves, moves);
+
+  /* évalue récursivement les positions accessibles à partir d'ici */
+  for (int i = 0; i < n_moves; i++) {
+    tree_t child;
+    result_t child_result;
+
+    play_move(T, moves[i], &child);
+
+    if (allowed_to_dig > 0){
+    	deep_evaluate(&child, &child_result, nodes, i_nodes, allowed_to_dig-1);
+
+	    int child_score = -child_result.score;
+
+	    if (child_score > result->score) {
+	      result->score = child_score;
+	      result->best_move = moves[i];
+	      result->pv_length = child_result.pv_length + 1;
+	      for(int j = 0; j < child_result.pv_length; j++)
+	        result->PV[j+1] = child_result.PV[j];
+	      result->PV[0] = moves[i];
+	    }
+	    if (ALPHA_BETA_PRUNING && child_score >= T->beta)
+      	break;  
+      T->alpha = MAX(T->alpha, child_score);
+    }
+    else{
+    	nodes[*i_nodes] = &child;
+    	results[*i_nodes] = &child_result;
+    	*i_nodes++;
+    }
   }
 
-  *n_moves = generate_legal_moves(T, &moves[0]);
-  *n_nodes = *n_moves;
-
-  /* absence de coups légaux : pat ou mat */
-  if (n_moves == 0) {
-    result->score = check(T) ? -MAX_SCORE : CERTAIN_DRAW;
-    return;
-  }
-
-  if (ALPHA_BETA_PRUNING)
-    sort_moves(T, *n_moves, moves);
+  if (TRANSPOSITION_TABLE)
+    tt_store(T, result);
 }
 
 void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status, MPI_Request *request, MPI_Datatype datatype)
 {
   /*-----maitre-----*/
   if(my_rank==0){
-    node_searched++;
+    node_searched++; //faire un reduce à la fin dans une prochaine version pour rassembler les noeuds explores
     result_t result_tmp;
     int alpha_tmp;
 
     move_t moves[MAX_MOVES];
     int n_moves;
     int n_nodes;
+    int i_nodes;
+    int allowed_to_dig = 0;
+
+		tree_t nodes[MAX_NODES];
+		result_t results[MAX_NODES];
 
     result->score = -MAX_SCORE - 1;
     result->pv_length = 0;
 
-    evaluate_beginning(T, result, &n_moves, &n_nodes, moves);
+    evaluate_beginning(T, result, &n_moves, moves);
+    n_nodes = n_moves; //nb de move possible à la prodondeur 1, souvent insuffisant pour tous les processeurs
 
-    // if (test_draw_or_victory(T, result))
-    //   return;
-
-    // if (TRANSPOSITION_TABLE && tt_lookup(T, result))     /* la réponse est-elle déjà connue ? */
-    //   return;
-
-    // compute_attack_squares(T);
-
-    // /* profondeur max atteinte ? si oui, évaluation heuristique */
-    // if (T->depth == 0) {
-    //   result->score = (2 * T->side - 1) * heuristic_evaluation(T);
-    //   return;
-    // }
-
-    // n_moves = generate_legal_moves(T, &moves[0]);
-    // n_nodes = n_moves;
-
-    // /* absence de coups légaux : pat ou mat */
-    // if (n_moves == 0) {
-    //   result->score = check(T) ? -MAX_SCORE : CERTAIN_DRAW;
-    //   return;
-    // }
-
-    // if (ALPHA_BETA_PRUNING)
-    //   sort_moves(T, n_moves, moves);
-
-  	/*--- limite ancienne fonction evaluate ---*/
-
-
+    /* granulométrie adaptative */
+    /* si nb de processeurs superieur au nb de moves on lance une evaluation de la profondeur adaptee */
+		while ( (p > n_nodes) || (T->depth > 1) || (T->depth > allowed_to_dig)){
+			/* remise à zeros des compteurs de nodes */
+			allowed_to_dig++;
+			i_nodes = 0;
+			n_nodes = 0;
+			deep_evaluate(T, result, nodes, results, &i_nodes, allowed_to_dig)
+			n_nodes = i_nodes + 1; 
+		}
+  	
     int iproc, imoves=0;
     for(iproc=1; iproc<p; iproc++){
       imoves = iproc-1;
