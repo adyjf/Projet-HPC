@@ -78,6 +78,35 @@ void evaluate(tree_t * T, result_t *result)
     tt_store(T, result);
 }
 
+void evaluate_beginning(tree_t * T, result_t *result, int * n_moves, int * n_nodes, move_t moves[])
+{
+	if (test_draw_or_victory(T, result))
+      return;
+
+  if (TRANSPOSITION_TABLE && tt_lookup(T, result))     /* la réponse est-elle déjà connue ? */
+    return;
+
+  compute_attack_squares(T);
+
+  /* profondeur max atteinte ? si oui, évaluation heuristique */
+  if (T->depth == 0) {
+    result->score = (2 * T->side - 1) * heuristic_evaluation(T);
+    return;
+  }
+
+  *n_moves = generate_legal_moves(T, &moves[0]);
+  *n_nodes = *n_moves;
+
+  /* absence de coups légaux : pat ou mat */
+  if (n_moves == 0) {
+    result->score = check(T) ? -MAX_SCORE : CERTAIN_DRAW;
+    return;
+  }
+
+  if (ALPHA_BETA_PRUNING)
+    sort_moves(T, *n_moves, moves);
+}
+
 void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status, MPI_Request *request, MPI_Datatype datatype)
 {
   /*-----maitre-----*/
@@ -88,34 +117,41 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 
     move_t moves[MAX_MOVES];
     int n_moves;
+    int n_nodes;
 
     result->score = -MAX_SCORE - 1;
     result->pv_length = 0;
 
-    if (test_draw_or_victory(T, result))
-      return;
+    evaluate_beginning(T, result, &n_moves, &n_nodes, moves);
 
-    if (TRANSPOSITION_TABLE && tt_lookup(T, result))     /* la réponse est-elle déjà connue ? */
-      return;
+    // if (test_draw_or_victory(T, result))
+    //   return;
 
-    compute_attack_squares(T);
+    // if (TRANSPOSITION_TABLE && tt_lookup(T, result))     /* la réponse est-elle déjà connue ? */
+    //   return;
 
-    /* profondeur max atteinte ? si oui, évaluation heuristique */
-    if (T->depth == 0) {
-      result->score = (2 * T->side - 1) * heuristic_evaluation(T);
-      return;
-    }
+    // compute_attack_squares(T);
 
-    n_moves = generate_legal_moves(T, &moves[0]);
+    // /* profondeur max atteinte ? si oui, évaluation heuristique */
+    // if (T->depth == 0) {
+    //   result->score = (2 * T->side - 1) * heuristic_evaluation(T);
+    //   return;
+    // }
 
-    /* absence de coups légaux : pat ou mat */
-    if (n_moves == 0) {
-      result->score = check(T) ? -MAX_SCORE : CERTAIN_DRAW;
-      return;
-    }
+    // n_moves = generate_legal_moves(T, &moves[0]);
+    // n_nodes = n_moves;
 
-    if (ALPHA_BETA_PRUNING)
-      sort_moves(T, n_moves, moves);
+    // /* absence de coups légaux : pat ou mat */
+    // if (n_moves == 0) {
+    //   result->score = check(T) ? -MAX_SCORE : CERTAIN_DRAW;
+    //   return;
+    // }
+
+    // if (ALPHA_BETA_PRUNING)
+    //   sort_moves(T, n_moves, moves);
+
+  	/*--- limite ancienne fonction evaluate ---*/
+
 
     int iproc, imoves=0;
     for(iproc=1; iproc<p; iproc++){
@@ -252,13 +288,13 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status
 int main(int argc, char **argv){
   double temps_calcul=0;
 
-  /*Variables MPI*/
+  /* variables MPI */
   int my_rank;
   int p;
   MPI_Status status;
   MPI_Request request;
 
-  /*Initialisation MPI*/
+  /* initialisation MPI */
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &p);
@@ -277,7 +313,7 @@ int main(int argc, char **argv){
     init_tt();
   }
 
-  /*structure MPI_tree_t*/
+  /* structure MPI_tree_t */
   int count_tree_t = 14;
   const int blocklengths_tree_t[] = {128,128,1,1,1,1,1,1,2,2,128,1,1,MAX_DEPTH};
   MPI_Aint displacements_tree_t[14];
@@ -303,7 +339,7 @@ int main(int argc, char **argv){
   MPI_Type_create_struct(count_tree_t, blocklengths_tree_t, displacements_tree_t, types_tree_t, &mpi_tree_t);
   MPI_Type_commit(&mpi_tree_t);
 
-  /*structure MPI_result_t*/
+  /* structure MPI_result_t */
   int count_result_t = 4;
   const int blocklengths_result_t[4] = {1,1,1, MAX_DEPTH};
   MPI_Aint displacements_result_t[4];
