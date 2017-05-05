@@ -120,32 +120,44 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
     printf("N_MOVES = %d\n", n_moves);
     int iproc, imoves=0;
     for(iproc=1; iproc<p; iproc++){
-        MPI_Send(&moves[iproc-1], 1, MPI_INT, iproc, TAG_DATA, MPI_COMM_WORLD);
-        //fprintf(stderr, "node %d envoye a %d\nimoves = %d\n", iproc-1, iproc, imoves);
-        imoves++;
-      }
+      imoves = iproc-1;
+      MPI_Send(&moves[imoves], 1, MPI_INT, iproc, TAG_DATA, MPI_COMM_WORLD);
+      //fprintf(stderr, "node %d envoye a %d\nimoves = %d\n", iproc-1, iproc, imoves);
+    }
     printf("i_moves = %d\n", imoves);
-    while (imoves!=n_moves){
+    while (imoves < n_moves-1){
+      imoves++;
       MPI_Probe(MPI_ANY_SOURCE, TAG_DATA, MPI_COMM_WORLD, status);
       MPI_Recv(&result_tmp, 1, datatype, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
       //fprintf(stderr, "processus #%d a bien recu de la part de #%d\n", my_rank, status->MPI_SOURCE);
-      MPI_Irecv(&alpha_tmp, 1, MPI_INT, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, request);
-      MPI_Isend(&moves[imoves], 1, MPI_INT, status->MPI_SOURCE, TAG_DATA, MPI_COMM_WORLD, request);
+      MPI_Recv(&alpha_tmp, 1, MPI_INT, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
+      MPI_Send(&moves[imoves], 1, MPI_INT, status->MPI_SOURCE, TAG_DATA, MPI_COMM_WORLD);
+      
       if(result_tmp.score > result->score){
-        result = &result_tmp;
+        //result = &result_tmp;
+        result->score = result_tmp.score;
+        result->best_move = result_tmp.best_move;
+        result->pv_length = result_tmp.pv_length;
+        for(int j = 0; j < result_tmp.pv_length; j++)
+          result->PV[j+1] = result_tmp.PV[j];
         printf("result score : %d\n", result_tmp.score);
       }
       T->alpha = MAX(T->alpha, alpha_tmp);
-      imoves++;
       //printf("i_moves = %d\n", imoves);
     }
 
     for(iproc=1; iproc<p; iproc++){
       MPI_Probe(MPI_ANY_SOURCE, TAG_DATA, MPI_COMM_WORLD, status);
       MPI_Recv(&result_tmp, 1, datatype, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
-      MPI_Irecv(&alpha_tmp, 1, MPI_INT, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, request);
+      MPI_Recv(&alpha_tmp, 1, MPI_INT, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
+      
       if(result_tmp.score > result->score){
-        result = &result_tmp;
+        //result = &result_tmp;
+        result->score = result_tmp.score;
+        result->best_move = result_tmp.best_move;
+        result->pv_length = result_tmp.pv_length;
+        for(int j = 0; j < result_tmp.pv_length; j++)
+          result->PV[j+1] = result_tmp.PV[j];
         printf("result score : %d\n", result_tmp.score);
       }
       T->alpha = MAX(T->alpha, alpha_tmp);
@@ -161,37 +173,45 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
   else{
     tree_t child;
     result_t child_result;
-    move_t moves;
+    move_t move;
+
+    result->score = -MAX_SCORE - 1;
+    result->pv_length = 0;
     
-    MPI_Irecv(&moves, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD, request);
+    MPI_Recv(&move, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD, status);
     //fprintf(stderr, "processus #%d a bien recu paquet %d\n", my_rank, moves);
     while(1){
-      MPI_Wait(request, status);
+      //MPI_Wait(request, status);
       //fprintf(stderr, "processus #%d a recu paquet %d\n", my_rank, moves);
       if(status->MPI_TAG == TAG_DATA){
         //fprintf(stderr, "processus #%d a recu paquet %d\n", my_rank, moves);
-        play_move(T, moves, &child);
-        evaluate(&child, &child_result);
+        if (T->depth == 0) {
+          result->score = (2 * T->side - 1) * heuristic_evaluation(T);
+        }
+        else{
+          play_move(T, move, &child);
+          evaluate(&child, &child_result);
 
-        int child_score = -child_result.score;
+          int child_score = -child_result.score;
 
-        if (child_score > result->score) {
-          result->score = child_score;
-          result->best_move = moves;
-          result->pv_length = child_result.pv_length + 1;
-          for(int j = 0; j < child_result.pv_length; j++)
-            result->PV[j+1] = child_result.PV[j];
-          result->PV[0] = moves;
+          if (child_score > result->score) {
+            result->score = child_score;
+            result->best_move = move;
+            result->pv_length = child_result.pv_length + 1;
+            for(int j = 0; j < child_result.pv_length; j++)
+              result->PV[j+1] = child_result.PV[j];
+            result->PV[0] = move;
+          }
+          if (ALPHA_BETA_PRUNING && child_score >= T->beta)
+            break;
+          T->alpha = MAX(T->alpha, child_score);
         }
 
-        if (ALPHA_BETA_PRUNING && child_score >= T->beta)
-          break;
         
         printf("processus #%d result_score : %d\n", my_rank, result->score);
         MPI_Send(result, 1, datatype, 0, TAG_DATA, MPI_COMM_WORLD);
-        T->alpha = MAX(T->alpha, child_score);
-        MPI_Isend(&T->alpha, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD, request);
-        MPI_Irecv(&moves, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, request);
+        MPI_Send(&T->alpha, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD);
+        MPI_Recv(&move, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, status);
       }
       else {
         //fprintf(stderr, "processus #%d a recu msg fin\n", my_rank);
