@@ -61,10 +61,7 @@ void evaluate(tree_t * T, result_t *result){
 
     int child_score = -child_result.score;
 
-    if (child_scoresult->score = -MAX_SCORE - 1;
-    result->pv_length = 0;
-
-    evaluatere > result->score) {
+    if (child_score > result->score) {
       result->score = child_score;
       result->best_move = moves[i];
       result->pv_length = child_result.pv_length + 1;
