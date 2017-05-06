@@ -48,7 +48,31 @@ void evaluate(tree_t * T, result_t *result){
   result->score = -MAX_SCORE - 1;
   result->pv_length = 0;
 
-  evaluate_beginning(T, result, &n_moves, moves);
+  //evaluate_beginning(T, result, &n_moves, moves);
+  if (test_draw_or_victory(T, result))
+    return;
+
+  if (TRANSPOSITION_TABLE && tt_lookup(T, result))     /* la réponse est-elle déjà connue ? */
+    return;
+
+  compute_attack_squares(T);
+
+  /* profondeur max atteinte ? si oui, évaluation heuristique */
+  if (T->depth == 0) {
+    result->score = (2 * T->side - 1) * heuristic_evaluation(T);
+    return;
+  }
+
+  n_moves = generate_legal_moves(T, &moves[0]);
+
+  /* absence de coups légaux : pat ou mat */
+  if (n_moves == 0) {
+    result->score = check(T) ? -MAX_SCORE : CERTAIN_DRAW;
+    return;
+  }
+
+  if (ALPHA_BETA_PRUNING)
+  sort_moves(T, n_moves, moves);
 
   /* évalue récursivement les positions accessibles à partir d'ici */
   for (int i = 0; i < n_moves; i++) {
@@ -90,7 +114,31 @@ void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results
   result->score = -MAX_SCORE - 1;
   result->pv_length = 0;
 
-	evaluate_beginning(T, result, &n_moves, moves);
+	//evaluate_beginning(T, result, &n_moves, moves);
+  if (test_draw_or_victory(T, result))
+    return;
+
+  if (TRANSPOSITION_TABLE && tt_lookup(T, result))     /* la réponse est-elle déjà connue ? */
+    return;
+
+  compute_attack_squares(T);
+
+  /* profondeur max atteinte ? si oui, évaluation heuristique */
+  if (T->depth == 0) {
+    result->score = (2 * T->side - 1) * heuristic_evaluation(T);
+    return;
+  }
+
+  n_moves = generate_legal_moves(T, &moves[0]);
+
+  /* absence de coups légaux : pat ou mat */
+  if (n_moves == 0) {
+    result->score = check(T) ? -MAX_SCORE : CERTAIN_DRAW;
+    return;
+  }
+
+  if (ALPHA_BETA_PRUNING)
+    sort_moves(T, n_moves, moves);
 
   /* évalue récursivement les positions accessibles à partir d'ici */
   for (int i = 0; i < n_moves; i++) {
@@ -118,8 +166,31 @@ void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results
     }
     else{
     	nodes[(*i_nodes)] = child;
+      /*for(int j=0; j<128; j++){
+        (nodes[(*i_nodes)]).pieces[j] = child.pieces[j];
+        (nodes[(*i_nodes)]).colors[j] = child.colors[j];
+        (nodes[(*i_nodes)]).attack[j] = child.attack[j];
+      }
+      nodes[(*i_nodes)].side = child.side;
+      nodes[(*i_nodes)].depth = child.depth;
+      nodes[(*i_nodes)].height = child.height;
+      nodes[(*i_nodes)].alpha = child.alpha;
+      nodes[(*i_nodes)].beta = child.beta;
+      nodes[(*i_nodes)].alpha_start = child.alpha_start;
+      for(int j=0; j<2; j++){
+        (nodes[(*i_nodes)]).king[j] = child.king[j];
+        (nodes[(*i_nodes)]).pawns[j] = child.pieces[j];
+      }
+      nodes[(*i_nodes)].suggested_move = child.suggested_move;
+      nodes[(*i_nodes)].hash = child.hash;
+      for (int j=0; j<MAX_DEPTH; j++)
+      {
+        (nodes[(*i_nodes)]).history[j] = child.history[j];
+      }*/
+
     	results[(*i_nodes)] = child_result;
     	*i_nodes = *i_nodes+1;
+      //fprintf(stderr, "deep_evaluate >> i_nodes = %d\n", *i_nodes);
     	//fprintf(stderr, "processeur #%d deep_evaluate\tallowed_to_dig : %d\n", my_rank, allowed_to_dig);
     }
   }
@@ -171,9 +242,11 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
         break;
 		}
 
+    fprintf(stderr, "N_NODES : %d\n", n_nodes);
     int iproc, imoves=0;
     for(iproc=1; iproc<p; iproc++){
       i_nodes = iproc-1;
+      fprintf(stderr, "i_nodes envoye : %d\n", i_nodes);
       MPI_Send(&nodes[i_nodes], 1, mpi_tree_t, iproc, TAG_DATA, MPI_COMM_WORLD);
       //MPI_Send(&nodes[i_nodes], 1, mpi_tree_t, iproc, TAG_DATA, MPI_COMM_WORLD);
       //MPI_Send(&moves[imoves], 1, MPI_INT, iproc, TAG_DATA, MPI_COMM_WORLD);
@@ -185,6 +258,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
       //imoves++;
       //fprintf(stderr, "processeur #%d evaluate_first while\n", my_rank);
       i_nodes++;
+      fprintf(stderr, "i_nodes envoye : %d\n", i_nodes);
       MPI_Probe(MPI_ANY_SOURCE, TAG_DATA, MPI_COMM_WORLD, status);
       MPI_Recv(&result_tmp, 1, mpi_result_t, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
       MPI_Recv(&alpha_tmp, 1, MPI_INT, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
@@ -202,7 +276,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
       }
       T->alpha = MAX(T->alpha, alpha_tmp);
     }
-    fprintf(stderr, "processeur #%d evaluate_first dernier paquet\n", my_rank);
+    
     for(iproc=1; iproc<p; iproc++){
       //fprintf(stderr, "processeur #%d evaluate_first dernier paquet\n", my_rank);
       MPI_Probe(MPI_ANY_SOURCE, TAG_DATA, MPI_COMM_WORLD, status);
@@ -231,19 +305,17 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
   }
   /*-----esclave-----*/
   else{
-    //fprintf(stderr, "Ok evaluate_first2 processus #%d\n", my_rank);
   	/*tree_t child;
     result_t child_result;*/
     tree_t node;
     result_t node_result;
     move_t move;
 
-    result->score = -MAX_SCORE - 1;
-    result->pv_length = 0;
+    node_result.score = -MAX_SCORE - 1;
+    node_result.pv_length = 0;
 
     //MPI_Recv(&move, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD, status);
     MPI_Recv(&node, 1, mpi_tree_t, 0, TAG_DATA, MPI_COMM_WORLD, status);
-    fprintf(stderr, "processus #%d a bien recu un paquet\n", my_rank);
 
     while(1){
       //MPI_Wait(request, status);
@@ -253,7 +325,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
           result->score = (2 * T->side - 1) * heuristic_evaluation(T);
         }*/
         if(node.depth == 0){
-          result->score = (2 * node.side - 1) * heuristic_evaluation(&node);
+          node_result.score = (2 * node.side - 1) * heuristic_evaluation(&node);
         }
         else{
           //play_move(T, move, &child);
@@ -273,7 +345,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
             break;
           T->alpha = MAX(T->alpha, child_score);*/
 
-          /*int node_result_score = -node_result.score;
+          int node_result_score = -node_result.score;
           if(node_result_score > result->score){
             result->score = node_result_score;
             result->best_move = node_result.best_move;
@@ -284,9 +356,9 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
           }
           if (ALPHA_BETA_PRUNING && node_result_score >= T->beta)
             break;
-          T->alpha = MAX(T->alpha, node_result_score);*/
+          T->alpha = MAX(T->alpha, node_result_score);
         }
-
+        fprintf(stderr, "processus #%d, score : %d\n", my_rank, node_result.score);
         MPI_Send(&node_result, 1, mpi_result_t, 0, TAG_DATA, MPI_COMM_WORLD);
         MPI_Send(&T->alpha, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD);
         MPI_Recv(&node, 1, mpi_tree_t, 0, MPI_ANY_TAG, MPI_COMM_WORLD, status);
@@ -307,7 +379,6 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 
 void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status, MPI_Request *request, MPI_Datatype mpi_result_t, MPI_Datatype mpi_tree_t, double *temps_calcul)
 {
-  //fprintf(stderr, "Ok debut decide processus #%d\n", my_rank);
   for (int depth = 1;; depth++) {
     T->depth = depth;
     T->height = 0;
@@ -317,9 +388,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status
     if (my_rank==0)
       printf("=====================================\n");
 
-    //fprintf(stderr, "Ok decide0 processus #%d, depth=%d\n", my_rank,depth);
   	evaluate_first(T, result, my_rank, p, status, request, mpi_result_t, mpi_tree_t);
-    fprintf(stderr, "ok decide processus #%d\n", my_rank);
 
     if (my_rank==0){
       printf("depth: %d / score: %.2f / best_move : ", T->depth, 0.01 * result->score);
