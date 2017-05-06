@@ -188,7 +188,8 @@ void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results
         (nodes[(*i_nodes)]).history[j] = child.history[j];
       }*/
 
-    	results[(*i_nodes)] = child_result;
+    	//results[(*i_nodes)] = child_result;
+    	results[(*i_nodes)] = *result;
     	*i_nodes = *i_nodes+1;
       //fprintf(stderr, "deep_evaluate >> i_nodes = %d\n", *i_nodes);
     	//fprintf(stderr, "processeur #%d deep_evaluate\tallowed_to_dig : %d\n", my_rank, allowed_to_dig);
