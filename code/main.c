@@ -100,10 +100,9 @@ void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results
     play_move(T, moves[i], &child);
 
     if (allowed_to_dig > 0){
-      //fprintf(stderr, "processeur #%d deep_evaluate 0\tallowed_to_dig : %d\n", my_rank, allowed_to_dig);
+      fprintf(stderr, "processeur #%d deep_evaluate\tallowed_to_dig : %d\n", my_rank, allowed_to_dig);
     	deep_evaluate(&child, &child_result, nodes, results, i_nodes, allowed_to_dig-1, my_rank);
-      //fprintf(stderr, "processeur #%d deep_evaluate 0\tallowed_to_dig : %d\n", my_rank, allowed_to_dig);
-	    int child_score = -child_result.score;
+      int child_score = -child_result.score;
 
 	    if (child_score > result->score) {
 	      result->score = child_score;
@@ -120,7 +119,8 @@ void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results
     else{
     	nodes[(*i_nodes)] = child;
     	results[(*i_nodes)] = child_result;
-    	*i_nodes++;
+    	*i_nodes = *i_nodes+1;
+    	fprintf(stderr, "processeur #%d deep_evaluate\tallowed_to_dig : %d\n", my_rank, allowed_to_dig);
     }
   }
 
@@ -132,6 +132,7 @@ void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results
 
 void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status, MPI_Request *request, MPI_Datatype datatype)
 {
+  //fprintf(stderr, "Ok evaluate_first processus #%d\n", my_rank);
   /*-----maitre-----*/
   if(my_rank==0){
     node_searched++; //faire un reduce à la fin dans une prochaine version pour rassembler les noeuds explores
@@ -153,23 +154,26 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
     evaluate_beginning(T, result, &n_moves, moves);
     n_nodes = n_moves; //nb de move possible à la prodondeur 1, souvent insuffisant pour tous les processeurs
     
-    /* granulométrie adaptative */
+    //fprintf(stderr, "Ok evaluate_first2 processus #%d, p=%d, n_nodes=%d, T->depth=%d\n", my_rank, p, n_nodes, T->depth);
+  	/* granulométrie adaptative */
     /* si nb de processeurs superieur au nb de moves on lance une evaluation de la profondeur adaptee */
-		while ((p > n_nodes) && (T->depth > 1) && (T->depth > allowed_to_dig)){
-      fprintf(stderr, "processeur #%d deep_evaluate 0\tallowed_to_dig : %d\n", my_rank, allowed_to_dig);
+		//while ((p > n_nodes) && (T->depth > 1) && (T->depth > allowed_to_dig)){
+    while (T->depth > allowed_to_dig){
+      //fprintf(stderr, "processeur #%d deep_evaluate 0\tallowed_to_dig : %d\n", my_rank, allowed_to_dig);
 			/* remise à zeros des compteurs de nodes */
-			allowed_to_dig++;
 			i_nodes = 0;
 			n_nodes = 0;
-      //fprintf(stderr, "processeur #%d evaluate first 1\n", my_rank);
-			deep_evaluate(T, result, nodes, results, &i_nodes, allowed_to_dig, my_rank);
-      //fprintf(stderr, "processeur #%d evaluate first 2\n", my_rank);
-			n_nodes = i_nodes + 1; 
+      deep_evaluate(T, result, nodes, results, &i_nodes, allowed_to_dig, my_rank);
+      allowed_to_dig++;
+			n_nodes = i_nodes; 
+			fprintf(stderr, "processeur #%d evaluate_first\tallowed_to_dig=%d, n_nodes=%d\n", my_rank, allowed_to_dig, n_nodes);
+			if (p-1 <= n_nodes) break;
 		}
   	
     int iproc, imoves=0;
     for(iproc=1; iproc<p; iproc++){
       imoves = iproc-1;
+      MPI_Send(&moves[imoves], 1, MPI_INT, iproc, TAG_DATA, MPI_COMM_WORLD);
       MPI_Send(&moves[imoves], 1, MPI_INT, iproc, TAG_DATA, MPI_COMM_WORLD);
       //fprintf(stderr, "node %d envoye a %d\nimoves = %d\n", iproc-1, iproc, imoves);
     }
@@ -219,7 +223,8 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
   }
   /*-----esclave-----*/
   else{
-    tree_t child;
+    //fprintf(stderr, "Ok evaluate_first2 processus #%d\n", my_rank);
+  	tree_t child;
     result_t child_result;
     move_t move;
 
@@ -227,7 +232,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
     result->pv_length = 0;
 
     MPI_Recv(&move, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD, status);
-    //fprintf(stderr, "processus #%d a bien recu paquet %d\n", my_rank, moves);
+    fprintf(stderr, "processus #%d a bien recu un paquet\n", my_rank);
     while(1){
       //MPI_Wait(request, status);
       //fprintf(stderr, "processus #%d a recu paquet %d\n", my_rank, moves);
@@ -275,6 +280,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 
 void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status, MPI_Request *request, MPI_Datatype datatype, double *temps_calcul)
 {
+  //fprintf(stderr, "Ok debut decide processus #%d\n", my_rank);
   for (int depth = 1;; depth++) {
     T->depth = depth;
     T->height = 0;
@@ -284,8 +290,9 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status
     if (my_rank==0)
       printf("=====================================\n");
 
-    evaluate_first(T, result, my_rank, p, status, request, datatype);
-    //fprintf(stderr, "ok decide processus #%d\n", my_rank);
+    //fprintf(stderr, "Ok decide0 processus #%d, depth=%d\n", my_rank,depth);
+  	evaluate_first(T, result, my_rank, p, status, request, datatype);
+    fprintf(stderr, "ok decide processus #%d\n", my_rank);
 
     if (my_rank==0){
       printf("depth: %d / score: %.2f / best_move : ", T->depth, 0.01 * result->score);
@@ -375,6 +382,7 @@ int main(int argc, char **argv){
   if(my_rank==0)
     print_position(&root);
 
+  //fprintf( stdout, "Processus #%d\tDEBUT\n", my_rank);
   decide(&root, &result, my_rank, p, &status, &request, mpi_result_t, &temps_calcul);
   //fprintf(stderr, "ok1\n" );
   if (my_rank==0){
