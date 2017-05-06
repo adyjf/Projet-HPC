@@ -162,7 +162,7 @@ void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results
 	    }
 	    if (ALPHA_BETA_PRUNING && child_score >= T->beta)
       	break;  
-      T->alpha = MAX(T->alpha, child_score);
+      T->alpha = MAX(T->alpha, child_score); 
     }
     else{
     	nodes[(*i_nodes)] = child;
@@ -325,7 +325,9 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
           result->score = (2 * T->side - 1) * heuristic_evaluation(T);
         }*/
         if(node.depth == 0){
-          node_result.score = (2 * node.side - 1) * heuristic_evaluation(&node);
+          //node_result.score = (2 * node.side - 1) * heuristic_evaluation(&node);
+          result->score = (2 * node.side - 1) * heuristic_evaluation(&node);
+          fprintf(stderr, "processus #%d heuristiqueesclave\n", my_rank);
         }
         else{
           //play_move(T, move, &child);
@@ -359,7 +361,8 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
           T->alpha = MAX(T->alpha, node_result_score);
         }
         fprintf(stderr, "processus #%d, score : %d\n", my_rank, node_result.score);
-        MPI_Send(&node_result, 1, mpi_result_t, 0, TAG_DATA, MPI_COMM_WORLD);
+        //MPI_Send(&node_result, 1, mpi_result_t, 0, TAG_DATA, MPI_COMM_WORLD);
+        MPI_Send(result, 1, mpi_result_t, 0, TAG_DATA, MPI_COMM_WORLD);
         MPI_Send(&T->alpha, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD);
         MPI_Recv(&node, 1, mpi_tree_t, 0, MPI_ANY_TAG, MPI_COMM_WORLD, status);
       }
