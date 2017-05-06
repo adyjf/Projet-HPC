@@ -80,7 +80,7 @@ void evaluate(tree_t * T, result_t *result){
     tt_store(T, result);
 }
 
-void deep_evaluate(tree_t * T, result_t *result, tree_t nodes[], result_t results[], int * i_nodes, int allowed_to_dig)
+void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results[], int * i_nodes, int allowed_to_dig)
 {
   node_searched++;
 
@@ -100,7 +100,7 @@ void deep_evaluate(tree_t * T, result_t *result, tree_t nodes[], result_t result
     play_move(T, moves[i], &child);
 
     if (allowed_to_dig > 0){
-    	deep_evaluate(&child, &child_result, nodes, i_nodes, allowed_to_dig-1);
+    	deep_evaluate(&child, &child_result, nodes, results, i_nodes, allowed_to_dig-1);
 
 	    int child_score = -child_result.score;
 
@@ -117,8 +117,8 @@ void deep_evaluate(tree_t * T, result_t *result, tree_t nodes[], result_t result
       T->alpha = MAX(T->alpha, child_score);
     }
     else{
-    	nodes[*i_nodes] = &child;
-    	results[*i_nodes] = &child_result;
+    	nodes[(*i_nodes)] = &child;
+    	results[(*i_nodes)] = &child_result;
     	*i_nodes++;
     }
   }
@@ -157,7 +157,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 			allowed_to_dig++;
 			i_nodes = 0;
 			n_nodes = 0;
-			deep_evaluate(T, result, nodes, results, &i_nodes, allowed_to_dig)
+			deep_evaluate(T, result, &nodes, &results, &i_nodes, allowed_to_dig);
 			n_nodes = i_nodes + 1; 
 		}
   	
