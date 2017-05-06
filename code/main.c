@@ -61,7 +61,10 @@ void evaluate(tree_t * T, result_t *result){
 
     int child_score = -child_result.score;
 
-    if (child_score > result->score) {
+    if (child_scoresult->score = -MAX_SCORE - 1;
+    result->pv_length = 0;
+
+    evaluatere > result->score) {
       result->score = child_score;
       result->best_move = moves[i];
       result->pv_length = child_result.pv_length + 1;
@@ -120,7 +123,7 @@ void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results
     	nodes[(*i_nodes)] = child;
     	results[(*i_nodes)] = child_result;
     	*i_nodes = *i_nodes+1;
-    	fprintf(stderr, "processeur #%d deep_evaluate\tallowed_to_dig : %d\n", my_rank, allowed_to_dig);
+    	//fprintf(stderr, "processeur #%d deep_evaluate\tallowed_to_dig : %d\n", my_rank, allowed_to_dig);
     }
   }
 
@@ -148,10 +151,10 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 		tree_t nodes[MAX_NODES];
 		result_t results[MAX_NODES];
 
-    result->score = -MAX_SCORE - 1;
+    /*result->score = -MAX_SCORE - 1;
     result->pv_length = 0;
 
-    evaluate_beginning(T, result, &n_moves, moves);
+    evaluate_beginning(T, result, &n_moves, moves);*/
     n_nodes = n_moves; //nb de move possible à la prodondeur 1, souvent insuffisant pour tous les processeurs
     
     //fprintf(stderr, "Ok evaluate_first2 processus #%d, p=%d, n_nodes=%d, T->depth=%d\n", my_rank, p, n_nodes, T->depth);
@@ -166,7 +169,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
       deep_evaluate(T, result, nodes, results, &i_nodes, allowed_to_dig, my_rank);
       allowed_to_dig++;
 			n_nodes = i_nodes; 
-			fprintf(stderr, "processeur #%d evaluate_first\tallowed_to_dig=%d, n_nodes=%d\n", my_rank, allowed_to_dig, n_nodes);
+			//fprintf(stderr, "processeur #%d evaluate_first\tallowed_to_dig=%d, n_nodes=%d\n", my_rank, allowed_to_dig, n_nodes);
 			if (p-1 <= n_nodes) 
         break;
 		}
