@@ -117,8 +117,8 @@ void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results
       T->alpha = MAX(T->alpha, child_score);
     }
     else{
-    	nodes[(*i_nodes)] = &child;
-    	results[(*i_nodes)] = &child_result;
+    	nodes[(*i_nodes)] = child;
+    	results[(*i_nodes)] = child_result;
     	*i_nodes++;
     }
   }
@@ -157,7 +157,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 			allowed_to_dig++;
 			i_nodes = 0;
 			n_nodes = 0;
-			deep_evaluate(T, result, &nodes, &results, &i_nodes, allowed_to_dig);
+			deep_evaluate(T, result, nodes, results, &i_nodes, allowed_to_dig);
 			n_nodes = i_nodes + 1; 
 		}
   	
