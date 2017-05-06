@@ -80,7 +80,7 @@ void evaluate(tree_t * T, result_t *result){
     tt_store(T, result);
 }
 
-void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results[], int * i_nodes, int allowed_to_dig)
+void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results[], int *i_nodes, int allowed_to_dig, int my_rank)
 {
   node_searched++;
 
@@ -100,8 +100,9 @@ void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results
     play_move(T, moves[i], &child);
 
     if (allowed_to_dig > 0){
-    	deep_evaluate(&child, &child_result, nodes, results, i_nodes, allowed_to_dig-1);
-
+      //fprintf(stderr, "processeur #%d deep_evaluate 0\tallowed_to_dig : %d\n", my_rank, allowed_to_dig);
+    	deep_evaluate(&child, &child_result, nodes, results, i_nodes, allowed_to_dig-1, my_rank);
+      //fprintf(stderr, "processeur #%d deep_evaluate 0\tallowed_to_dig : %d\n", my_rank, allowed_to_dig);
 	    int child_score = -child_result.score;
 
 	    if (child_score > result->score) {
@@ -125,6 +126,8 @@ void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results
 
   if (TRANSPOSITION_TABLE)
     tt_store(T, result);
+
+  //fprintf(stderr, "processeur #%d deep_evaluate 1\n", my_rank);
 }
 
 void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status, MPI_Request *request, MPI_Datatype datatype)
@@ -149,15 +152,18 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 
     evaluate_beginning(T, result, &n_moves, moves);
     n_nodes = n_moves; //nb de move possible à la prodondeur 1, souvent insuffisant pour tous les processeurs
-
+    
     /* granulométrie adaptative */
     /* si nb de processeurs superieur au nb de moves on lance une evaluation de la profondeur adaptee */
-		while ( (p > n_nodes) || (T->depth > 1) || (T->depth > allowed_to_dig)){
+		while ((p > n_nodes) && (T->depth > 1) && (T->depth > allowed_to_dig)){
+      fprintf(stderr, "processeur #%d deep_evaluate 0\tallowed_to_dig : %d\n", my_rank, allowed_to_dig);
 			/* remise à zeros des compteurs de nodes */
 			allowed_to_dig++;
 			i_nodes = 0;
 			n_nodes = 0;
-			deep_evaluate(T, result, nodes, results, &i_nodes, allowed_to_dig);
+      //fprintf(stderr, "processeur #%d evaluate first 1\n", my_rank);
+			deep_evaluate(T, result, nodes, results, &i_nodes, allowed_to_dig, my_rank);
+      //fprintf(stderr, "processeur #%d evaluate first 2\n", my_rank);
 			n_nodes = i_nodes + 1; 
 		}
   	
@@ -219,7 +225,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 
     result->score = -MAX_SCORE - 1;
     result->pv_length = 0;
-    
+
     MPI_Recv(&move, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD, status);
     //fprintf(stderr, "processus #%d a bien recu paquet %d\n", my_rank, moves);
     while(1){
