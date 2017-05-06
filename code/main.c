@@ -202,9 +202,9 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
       }
       T->alpha = MAX(T->alpha, alpha_tmp);
     }
-
+    fprintf(stderr, "processeur #%d evaluate_first dernier paquet\n", my_rank);
     for(iproc=1; iproc<p; iproc++){
-      fprintf(stderr, "processeur #%d evaluate_first dernier paquet\n", my_rank);
+      //fprintf(stderr, "processeur #%d evaluate_first dernier paquet\n", my_rank);
       MPI_Probe(MPI_ANY_SOURCE, TAG_DATA, MPI_COMM_WORLD, status);
       MPI_Recv(&result_tmp, 1, mpi_result_t, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
       MPI_Recv(&alpha_tmp, 1, MPI_INT, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
@@ -249,9 +249,11 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
       //MPI_Wait(request, status);
       //fprintf(stderr, "processus #%d a recu paquet %d\n", my_rank, moves);
       if(status->MPI_TAG == TAG_DATA){
-        //fprintf(stderr, "processus #%d a recu paquet %d\n", my_rank, moves);
-        if (T->depth == 0) {
+        /*if (T->depth == 0) {
           result->score = (2 * T->side - 1) * heuristic_evaluation(T);
+        }*/
+        if(node.depth == 0){
+          result->score = (2 * node.side - 1) * heuristic_evaluation(&node);
         }
         else{
           //play_move(T, move, &child);
@@ -271,7 +273,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
             break;
           T->alpha = MAX(T->alpha, child_score);*/
 
-          int node_result_score = -node_result.score;
+          /*int node_result_score = -node_result.score;
           if(node_result_score > result->score){
             result->score = node_result_score;
             result->best_move = node_result.best_move;
@@ -282,7 +284,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
           }
           if (ALPHA_BETA_PRUNING && node_result_score >= T->beta)
             break;
-          T->alpha = MAX(T->alpha, node_result_score);
+          T->alpha = MAX(T->alpha, node_result_score);*/
         }
 
         MPI_Send(&node_result, 1, mpi_result_t, 0, TAG_DATA, MPI_COMM_WORLD);
