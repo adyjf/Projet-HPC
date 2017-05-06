@@ -130,7 +130,7 @@ void deep_evaluate(tree_t *T, result_t *result, tree_t nodes[], result_t results
   //fprintf(stderr, "processeur #%d deep_evaluate 1\n", my_rank);
 }
 
-void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status, MPI_Request *request, MPI_Datatype datatype)
+void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status, MPI_Request *request, MPI_Datatype mpi_result_t, MPI_Datatype mpi_tree_t)
 {
   //fprintf(stderr, "Ok evaluate_first processus #%d\n", my_rank);
   /*-----maitre-----*/
@@ -167,25 +167,29 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
       allowed_to_dig++;
 			n_nodes = i_nodes; 
 			fprintf(stderr, "processeur #%d evaluate_first\tallowed_to_dig=%d, n_nodes=%d\n", my_rank, allowed_to_dig, n_nodes);
-			if (p-1 <= n_nodes) break;
+			if (p-1 <= n_nodes) 
+        break;
 		}
-  	
+  	inode = 0;
     int iproc, imoves=0;
     for(iproc=1; iproc<p; iproc++){
       imoves = iproc-1;
-      MPI_Send(&moves[imoves], 1, MPI_INT, iproc, TAG_DATA, MPI_COMM_WORLD);
-      MPI_Send(&moves[imoves], 1, MPI_INT, iproc, TAG_DATA, MPI_COMM_WORLD);
-      //fprintf(stderr, "node %d envoye a %d\nimoves = %d\n", iproc-1, iproc, imoves);
+      MPI_Send(&nodes[inodes], 1, mpi_tree_t, iproc, TAG_DATA, MPI_COMM_WORLD);
+      MPI_Send(&nodes[inodes], 1, mpi_tree_t, iproc, TAG_DATA, MPI_COMM_WORLD);
+      //MPI_Send(&moves[imoves], 1, MPI_INT, iproc, TAG_DATA, MPI_COMM_WORLD);
+      //MPI_Send(&moves[imoves], 1, MPI_INT, iproc, TAG_DATA, MPI_COMM_WORLD);
     }
 
-    while (imoves < n_moves-1){
-      imoves++;
+    //while (imoves < n_moves-1){
+    while(inodes < n_nodes){
+      //imoves++;
+      inodes++;
       MPI_Probe(MPI_ANY_SOURCE, TAG_DATA, MPI_COMM_WORLD, status);
-      MPI_Recv(&result_tmp, 1, datatype, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
-      //fprintf(stderr, "processus #%d a bien recu de la part de #%d\n", my_rank, status->MPI_SOURCE);
+      MPI_Recv(&result_tmp, 1, mpi_result_t, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
       MPI_Recv(&alpha_tmp, 1, MPI_INT, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
-      MPI_Send(&moves[imoves], 1, MPI_INT, status->MPI_SOURCE, TAG_DATA, MPI_COMM_WORLD);
-      
+      //MPI_Send(&moves[imoves], 1, MPI_INT, status->MPI_SOURCE, TAG_DATA, MPI_COMM_WORLD);
+      MPI_Send(&nodes[inodes], 1, mpi_tree_t, iproc, TAG_DATA, MPI_COMM_WORLD);
+
       if(result_tmp.score > result->score){
         //result = &result_tmp;
         result->score = result_tmp.score;
@@ -200,7 +204,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
 
     for(iproc=1; iproc<p; iproc++){
       MPI_Probe(MPI_ANY_SOURCE, TAG_DATA, MPI_COMM_WORLD, status);
-      MPI_Recv(&result_tmp, 1, datatype, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
+      MPI_Recv(&result_tmp, 1, mpi_result_t, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
       MPI_Recv(&alpha_tmp, 1, MPI_INT, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
       
       if(result_tmp.score > result->score){
@@ -215,24 +219,30 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
       T->alpha = MAX(T->alpha, alpha_tmp);
     }
 
-    imoves=-1;
+    //imoves=-1;
+    inodes = 0;
     for(iproc=1; iproc<p; iproc++){
-      MPI_Send(&imoves, 1, MPI_INT, iproc, TAG_END, MPI_COMM_WORLD);
+      //MPI_Send(&imoves, 1, MPI_INT, iproc, TAG_END, MPI_COMM_WORLD);
+      MPI_Send(&nodes[inodes], 1, mpi_tree_t, iproc, TAG_END, MPI_COMM_WORLD)
       //fprintf(stderr, "processus #%d a envoye msg fin à %d\n", my_rank, iproc);
     }   
   }
   /*-----esclave-----*/
   else{
     //fprintf(stderr, "Ok evaluate_first2 processus #%d\n", my_rank);
-  	tree_t child;
-    result_t child_result;
+  	/*tree_t child;
+    result_t child_result;*/
+    tree_t node;
+    result_t node_result;
     move_t move;
 
     result->score = -MAX_SCORE - 1;
     result->pv_length = 0;
 
-    MPI_Recv(&move, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD, status);
+    //MPI_Recv(&move, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD, status);
+    MPI_Recv(&node, 1, mpi_tree_t, 0, TAG_DATA, MPI_COMM_WORLD, status);
     fprintf(stderr, "processus #%d a bien recu un paquet\n", my_rank);
+
     while(1){
       //MPI_Wait(request, status);
       //fprintf(stderr, "processus #%d a recu paquet %d\n", my_rank, moves);
@@ -242,11 +252,11 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
           result->score = (2 * T->side - 1) * heuristic_evaluation(T);
         }
         else{
-          play_move(T, move, &child);
-          evaluate(&child, &child_result);
+          //play_move(T, move, &child);
+          //evaluate(&child, &child_result);
+          evaluate(&node, &node_result);
 
-          int child_score = -child_result.score;
-
+          /*int child_score = -child_result.score;
           if (child_score > result->score) {
             result->score = child_score;
             result->best_move = move;
@@ -257,12 +267,25 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
           }
           if (ALPHA_BETA_PRUNING && child_score >= T->beta)
             break;
-          T->alpha = MAX(T->alpha, child_score);
+          T->alpha = MAX(T->alpha, child_score);*/
+
+          int node_result_score = -node_result.score;
+          if(node_result_score > result->score){
+            result->score = node_result_score;
+            result->best_move = node_result.best_move;
+            result->pv_length = node_result.pv_length + 1;
+            for(int j = 0; j < node_result.pv_length; j++)
+              result->PV[j+1] = node_result.PV[j];
+            result->PV[0] = node_result.best_move;
+          }
+          if (ALPHA_BETA_PRUNING && node_result_score >= T->beta)
+            break;
+          T->alpha = MAX(T->alpha, node_result_score);
         }
 
-        MPI_Send(result, 1, datatype, 0, TAG_DATA, MPI_COMM_WORLD);
+        MPI_Send(node_result, 1, mpi_result_t, 0, TAG_DATA, MPI_COMM_WORLD);
         MPI_Send(&T->alpha, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD);
-        MPI_Recv(&move, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, status);
+        MPI_Recv(&node, 1, mpi_tree_t, 0, MPI_ANY_TAG, MPI_COMM_WORLD, status);
       }
       else {
         //fprintf(stderr, "processus #%d a recu msg fin\n", my_rank);
@@ -278,7 +301,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
   //fprintf(stderr, "processus #%d est sorti\n", my_rank);
 }
 
-void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status, MPI_Request *request, MPI_Datatype datatype, double *temps_calcul)
+void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status, MPI_Request *request, MPI_Datatype mpi_result_t, MPI_Datatype mpi_tree_t, double *temps_calcul)
 {
   //fprintf(stderr, "Ok debut decide processus #%d\n", my_rank);
   for (int depth = 1;; depth++) {
@@ -291,7 +314,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status
       printf("=====================================\n");
 
     //fprintf(stderr, "Ok decide0 processus #%d, depth=%d\n", my_rank,depth);
-  	evaluate_first(T, result, my_rank, p, status, request, datatype);
+  	evaluate_first(T, result, my_rank, p, status, request, mpi_result_t, mpi_tree_t);
     fprintf(stderr, "ok decide processus #%d\n", my_rank);
 
     if (my_rank==0){
@@ -299,7 +322,7 @@ void decide(tree_t * T, result_t *result, int my_rank, int p, MPI_Status *status
       print_pv(T, result);
     }
 
-    MPI_Bcast(result,1,datatype,0,MPI_COMM_WORLD);
+    MPI_Bcast(result,1,mpi_result_t,0,MPI_COMM_WORLD);
 
     if (DEFINITIVE(result->score))
       break;
@@ -383,7 +406,7 @@ int main(int argc, char **argv){
     print_position(&root);
 
   //fprintf( stdout, "Processus #%d\tDEBUT\n", my_rank);
-  decide(&root, &result, my_rank, p, &status, &request, mpi_result_t, &temps_calcul);
+  decide(&root, &result, my_rank, p, &status, &request, mpi_result_t, mpi_tree_t, &temps_calcul);
   //fprintf(stderr, "ok1\n" );
   if (my_rank==0){
     printf("\nDécision de la position: ");
