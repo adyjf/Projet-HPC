@@ -369,7 +369,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
         }
         fprintf(stderr, "processus #%d, score : %d\n", my_rank, node_result.score);
         //MPI_Send(&node_result, 1, mpi_result_t, 0, TAG_DATA, MPI_COMM_WORLD);
-        MPI_Send(&node, 1, mpi_node_t, 0, TAG_DATA, MPI_COMM_WORLD);
+        MPI_Send(&node, 1, mpi_tree_t, 0, TAG_DATA, MPI_COMM_WORLD);
         MPI_Send(result, 1, mpi_result_t, 0, TAG_DATA, MPI_COMM_WORLD);
         MPI_Send(&T->alpha, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD);
         MPI_Recv(&node, 1, mpi_tree_t, 0, MPI_ANY_TAG, MPI_COMM_WORLD, status);
