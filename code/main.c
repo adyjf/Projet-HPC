@@ -248,7 +248,8 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
         result->best_move = result_tmp.best_move;
         result->pv_length = result_tmp.pv_length;
         for(int j = 0; j < result_tmp.pv_length; j++)
-          result->PV[j+1] = result_tmp.PV[j];
+          result->PV[j] = result_tmp.PV[j];
+        result->PV[0] = result_tmp.best_move;
         printf("reactualisation tableau best_move\n");
         //T->side = node_tmp.side;
       }
@@ -269,6 +270,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
         result->pv_length = result_tmp.pv_length;
         for(int j = 0; j < result_tmp.pv_length; j++)
           result->PV[j+1] = result_tmp.PV[j];
+        result->PV[0] = result_tmp.best_move;
         printf("reactualisation tableau best_move\n");
         //T->side = node_tmp.side;
       }
