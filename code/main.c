@@ -208,6 +208,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
   /*-----maitre-----*/
   if(my_rank==0){
     node_searched++; //faire un reduce à la fin dans une prochaine version pour rassembler les noeuds explores
+    tree_t node_tmp;
     result_t result_tmp;
     int alpha_tmp;
 
@@ -261,6 +262,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
       i_nodes++;
       fprintf(stderr, "i_nodes envoye : %d\n", i_nodes);
       MPI_Probe(MPI_ANY_SOURCE, TAG_DATA, MPI_COMM_WORLD, status);
+      MPI_Recv(&node_tmp, 1, mpi_tree_t, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
       MPI_Recv(&result_tmp, 1, mpi_result_t, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
       MPI_Recv(&alpha_tmp, 1, MPI_INT, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
       //MPI_Send(&moves[imoves], 1, MPI_INT, status->MPI_SOURCE, TAG_DATA, MPI_COMM_WORLD);
@@ -282,6 +284,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
     for(iproc=1; iproc<p; iproc++){
       //fprintf(stderr, "processeur #%d evaluate_first dernier paquet\n", my_rank);
       MPI_Probe(MPI_ANY_SOURCE, TAG_DATA, MPI_COMM_WORLD, status);
+      MPI_Recv(&node_tmp, 1, mpi_tree_t, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
       MPI_Recv(&result_tmp, 1, mpi_result_t, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
       MPI_Recv(&alpha_tmp, 1, MPI_INT, status->MPI_SOURCE, status->MPI_TAG, MPI_COMM_WORLD, status);
       
@@ -366,6 +369,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
         }
         fprintf(stderr, "processus #%d, score : %d\n", my_rank, node_result.score);
         //MPI_Send(&node_result, 1, mpi_result_t, 0, TAG_DATA, MPI_COMM_WORLD);
+        MPI_Send(&node, 1, mpi_node_t, 0, TAG_DATA, MPI_COMM_WORLD);
         MPI_Send(result, 1, mpi_result_t, 0, TAG_DATA, MPI_COMM_WORLD);
         MPI_Send(&T->alpha, 1, MPI_INT, 0, TAG_DATA, MPI_COMM_WORLD);
         MPI_Recv(&node, 1, mpi_tree_t, 0, MPI_ANY_TAG, MPI_COMM_WORLD, status);
