@@ -318,19 +318,6 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
           //evaluate(&child, &child_result);
           evaluate(&node, &node_result);
 
-          /*int child_score = -child_result.score;
-          if (child_score > result->score) {
-            result->score = child_score;
-            result->best_move = move;
-            result->pv_length = child_result.pv_length + 1;
-            for(int j = 0; j < child_result.pv_length; j++)
-              result->PV[j+1] = child_result.PV[j];
-            result->PV[0] = move;
-          }
-          if (ALPHA_BETA_PRUNING && child_score >= T->beta)
-            break;
-          T->alpha = MAX(T->alpha, child_score);*/
-
           int node_result_score = -node_result.score;
           if(node_result_score > result->score){
             result->score = node_result_score;
