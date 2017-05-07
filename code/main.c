@@ -12,33 +12,6 @@ double my_gettimeofday()
   return tmp_time.tv_sec + (tmp_time.tv_usec * 1.0e-6L);
 }
 
-void evaluate_beginning(tree_t * T, result_t *result, int * n_moves, move_t moves[]){
-	if (test_draw_or_victory(T, result))
-      return;
-
-  if (TRANSPOSITION_TABLE && tt_lookup(T, result))     /* la réponse est-elle déjà connue ? */
-    return;
-
-  compute_attack_squares(T);
-
-  /* profondeur max atteinte ? si oui, évaluation heuristique */
-  if (T->depth == 0) {
-    result->score = (2 * T->side - 1) * heuristic_evaluation(T);
-    return;
-  }
-
-  *n_moves = generate_legal_moves(T, &moves[0]);
-  
-  /* absence de coups légaux : pat ou mat */
-  if (n_moves == 0) {
-    result->score = check(T) ? -MAX_SCORE : CERTAIN_DRAW;
-    return;
-  }
-
-  if (ALPHA_BETA_PRUNING)
-    sort_moves(T, *n_moves, moves);
-}
-
 void evaluate(tree_t * T, result_t *result){
   node_searched++;
 
@@ -212,7 +185,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
     result_t result_tmp;
     int alpha_tmp;
 
-    move_t moves[MAX_MOVES];
+    //move_t moves[MAX_MOVES];
     int n_moves;
     int n_nodes;
     int i_nodes;
@@ -225,7 +198,7 @@ void evaluate_first(tree_t * T, result_t *result, int my_rank, int p, MPI_Status
     result->pv_length = 0;
 
     evaluate_beginning(T, result, &n_moves, moves);*/
-    n_nodes = n_moves; //nb de move possible à la prodondeur 1, souvent insuffisant pour tous les processeurs
+    //n_nodes = n_moves; //nb de move possible à la prodondeur 1, souvent insuffisant pour tous les processeurs
     
     //fprintf(stderr, "Ok evaluate_first2 processus #%d, p=%d, n_nodes=%d, T->depth=%d\n", my_rank, p, n_nodes, T->depth);
   	/* granulométrie adaptative */
